@@ -4,20 +4,58 @@
   "description": "",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.96.2"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "contextCraftExplorer",
+          "title": "My Explorer",
+          "icon": "resources/my-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "contextCraftExplorer": [
+        {
+          "id": "contextCraftFileBrowser",
+          "name": "File Browser"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "context-craft.helloWorld",
-        "title": "Hello World"
+        "command": "contextCraftFileBrowser.deleteItem",
+        "title": "Delete Selected Item(s)",
+        "category": "File Browser"
       }
-    ]
+    ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "contextCraftFileBrowser.deleteItem",
+          "when": "view == contextCraftFileBrowser && viewItem == file",
+          "group": "navigation"
+        },
+        {
+          "command": "contextCraftFileBrowser.deleteItem",
+          "when": "view == contextCraftFileBrowser && viewItem == folder",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "contextCraftFileBrowser.deleteItem",
+          "when": "view == contextCraftFileBrowser",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -28,7 +66,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.100.0",
+    "@types/vscode": "^1.96.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
@@ -37,5 +75,10 @@
     "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
   }
 }
