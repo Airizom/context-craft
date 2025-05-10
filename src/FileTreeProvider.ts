@@ -21,9 +21,10 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 			const childUris: vscode.Uri[] = [];
 			for (const ws of roots) {
 				const entries = await vscode.workspace.fs.readDirectory(ws.uri);
-				for (const [name] of entries) {
+				for (const [name, type] of entries) {
 					const candidate = vscode.Uri.joinPath(ws.uri, name);
 					if (!(await this.isIgnored(candidate))) {
+						this.kindCache.set(candidate.fsPath, type);
 						childUris.push(candidate);
 					}
 				}
@@ -32,9 +33,10 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 		}
 		const children = await vscode.workspace.fs.readDirectory(element);
 		const visible: vscode.Uri[] = [];
-		for (const [name] of children) {
+		for (const [name, type] of children) {
 			const candidate = vscode.Uri.joinPath(element, name);
 			if (!(await this.isIgnored(candidate))) {
+				this.kindCache.set(candidate.fsPath, type);
 				visible.push(candidate);
 			}
 		}
