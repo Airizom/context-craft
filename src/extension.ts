@@ -17,6 +17,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		manageCheckboxStateManually: true
 	});
 
+	context.subscriptions.push(
+		vscode.commands.registerCommand("contextCraft.unselectAll", async () => {
+			fileTreeProvider.checkedPaths.clear();
+			await context.workspaceState.update(STATE_KEY_SELECTED, []);
+			fileTreeProvider.refresh();
+		})
+	);
+
 	/* ---------- checkbox cascade ---------- */
 	treeView.onDidChangeCheckboxState(async (event) => {
 		for (const [clickedResourceUri, newState] of event.items) {

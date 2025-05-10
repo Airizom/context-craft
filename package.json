@@ -24,19 +24,27 @@
       "contextCraftExplorer": [
         {
           "id": "contextCraftFileBrowser",
-          "name": "File Browser"
+          "name": "Context Craft"
         }
       ]
     },
     "commands": [
-      
+      {
+        "command": "contextCraft.unselectAll",
+        "title": "Unselect All",
+        "icon": "$(circle-slash)"
+      }
     ],
     "menus": {
       "view/item/context": [
         
       ],
       "view/title": [
-        
+        {
+          "command": "contextCraft.unselectAll",
+          "when": "view == contextCraftFileBrowser",
+          "group": "navigation"
+        }
       ]
     }
   },
