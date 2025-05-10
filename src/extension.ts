@@ -38,21 +38,112 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	});
 
 	async function toggleSelection(target: vscode.Uri, isChecked: boolean): Promise<void> {
-		const absolutePath: string = target.fsPath;
-		const STARTS_WITH_SEP = absolutePath + path.sep;
+		const targetPath: string = target.fsPath;
+		const startsWithSep: string = targetPath + path.sep;
 
 		if (isChecked) {
-			fileTreeProvider.checkedPaths.add(absolutePath);
-			for (const filePath of Array.from(fileTreeProvider.checkedPaths)) {
-				if (filePath !== absolutePath && filePath.startsWith(STARTS_WITH_SEP)) {
-					fileTreeProvider.checkedPaths.delete(filePath);
+			fileTreeProvider.checkedPaths.add(targetPath);
+
+			for (const pathInSet of Array.from(fileTreeProvider.checkedPaths)) {
+				if (pathInSet !== targetPath && pathInSet.startsWith(startsWithSep)) {
+					fileTreeProvider.checkedPaths.delete(pathInSet);
 				}
 			}
 		} else {
-			fileTreeProvider.checkedPaths.delete(absolutePath);
+			fileTreeProvider.checkedPaths.delete(targetPath);
+
+			const selectedAncestors: vscode.Uri[] = findAllSelectedAncestors(target);
+			for (const ancestor of selectedAncestors) {
+				fileTreeProvider.checkedPaths.delete(ancestor.fsPath);
+			}
+
+			if (selectedAncestors.length > 0) {
+				const topMost: vscode.Uri = selectedAncestors[selectedAncestors.length - 1];
+				await reselectDescendantsExcept(topMost, targetPath);
+			}
 		}
 
 		await rebalanceParents(target);
+	}
+
+	function findAllSelectedAncestors(descendant: vscode.Uri): vscode.Uri[] {
+		const result: vscode.Uri[] = [];
+		let cursor: vscode.Uri | undefined = descendant;
+
+		while (cursor !== undefined) {
+			const parent: vscode.Uri | undefined =
+				path.dirname(cursor.fsPath) === cursor.fsPath ? undefined : vscode.Uri.file(path.dirname(cursor.fsPath));
+
+			if (parent !== undefined && fileTreeProvider.checkedPaths.has(parent.fsPath)) {
+				result.push(parent);
+			}
+			cursor = parent;
+		}
+		return result;
+	}
+
+	async function reselectDescendantsExcept(root: vscode.Uri, skipPath: string): Promise<void> {
+		const stack: vscode.Uri[] = [root];
+		const toAdd: string[] = [];
+		const isDirCache = new Map<string, boolean>();
+
+		while (stack.length > 0) {
+			const current: vscode.Uri = stack.pop() as vscode.Uri;
+			const currentPath: string = current.fsPath;
+
+			if (
+				currentPath === root.fsPath ||
+				currentPath === skipPath ||
+				skipPath.startsWith(currentPath + path.sep)
+			) {
+				if (currentPath !== root.fsPath && !skipPath.startsWith(currentPath + path.sep)) {
+					continue;
+				}
+			} else {
+				toAdd.push(currentPath);
+			}
+
+			let isDir: boolean;
+			if (isDirCache.has(currentPath)) {
+				isDir = isDirCache.get(currentPath)!;
+			} else {
+				isDir = await isDirectory(current);
+				isDirCache.set(currentPath, isDir);
+			}
+			if (isDir) {
+				const children: vscode.Uri[] = await fileTreeProvider.getChildren(current);
+				for (const child of children) {
+					stack.push(child);
+				}
+			}
+		}
+		for (const path of toAdd) {
+			fileTreeProvider.checkedPaths.add(path);
+		}
+	}
+
+	async function isDirectory(uri: vscode.Uri): Promise<boolean> {
+		try {
+			const stat = await vscode.workspace.fs.stat(uri);
+			return (stat.type & vscode.FileType.Directory) === vscode.FileType.Directory;
+		} catch {
+			return false;
+		}
+	}
+
+	function hasExplicitlySelectedAncestor(uri: vscode.Uri): boolean {
+		let current: vscode.Uri | undefined = uri;
+		while (current !== undefined) {
+			const parentPath: string = path.dirname(current.fsPath);
+			if (parentPath === current.fsPath) {
+				return false;
+			}
+			if (fileTreeProvider.checkedPaths.has(parentPath)) {
+				return true;
+			}
+			current = vscode.Uri.file(parentPath);
+		}
+		return false;
 	}
 
 	async function rebalanceParents(startLeaf: vscode.Uri): Promise<void> {
@@ -64,14 +155,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 			for (const child of children) {
 				const childPath: string = child.fsPath;
-				if (fileTreeProvider.checkedPaths.has(childPath)) {
+				const isVisuallyChecked: boolean =
+					fileTreeProvider.checkedPaths.has(childPath) ||
+					hasExplicitlySelectedAncestor(child);
+
+				if (isVisuallyChecked) {
 					checkedCount += 1;
 				} else {
-					if (hasSelectedAncestor(child)) {
-						checkedCount += 1;
-					} else {
-						uncheckedCount += 1;
-					}
+					uncheckedCount += 1;
 				}
 			}
 
@@ -86,19 +177,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 			cursor = await getParent(cursor);
 		}
-	}
-
-	function hasSelectedAncestor(target: vscode.Uri): boolean {
-		let current: vscode.Uri | undefined = target;
-		while (current !== undefined) {
-			if (fileTreeProvider.checkedPaths.has(current.fsPath)) {
-				return true;
-			}
-			current = path.dirname(current.fsPath) === current.fsPath
-				? undefined
-				: vscode.Uri.file(path.dirname(current.fsPath));
-		}
-		return false;
 	}
 }
 

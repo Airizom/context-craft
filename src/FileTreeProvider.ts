@@ -70,7 +70,7 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 		treeItem.resourceUri = element;
 		treeItem.contextValue = isDirectory ? "folder" : "file";
 
-		treeItem.checkboxState = this.computeCheckboxState(element, isDirectory);
+		treeItem.checkboxState = this.computeCheckboxState(element);
 
 		if (!isDirectory) {
 			treeItem.command = {
@@ -82,26 +82,24 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 		return treeItem;
 	}
 
-	private computeCheckboxState(element: vscode.Uri, isDirectory: boolean): vscode.TreeItemCheckboxState {
-		const fullPath: string = element.fsPath;
-
-		if (this.checkedPaths.has(fullPath)) {
+	private computeCheckboxState(
+		element: vscode.Uri
+	): vscode.TreeItemCheckboxState {
+		if (this.checkedPaths.has(element.fsPath)) {
 			return vscode.TreeItemCheckboxState.Checked;
 		}
 
-		let current: vscode.Uri | undefined = vscode.Uri.file(path.dirname(fullPath));
-		while (current.fsPath !== fullPath) {
-			if (this.checkedPaths.has(current.fsPath)) {
+		let parentPath: string = path.dirname(element.fsPath);
+		while (parentPath !== element.fsPath) {
+			if (this.checkedPaths.has(parentPath)) {
 				return vscode.TreeItemCheckboxState.Checked;
 			}
-			const parentPath: string = path.dirname(current.fsPath);
-			if (parentPath === current.fsPath) {
+			const next: string = path.dirname(parentPath);
+			if (next === parentPath) {
 				break;
 			}
-			current = vscode.Uri.file(parentPath);
+			parentPath = next;
 		}
-
-		// Indeterminate state is not supported in this API version, fallback to Unchecked
 		return vscode.TreeItemCheckboxState.Unchecked;
 	}
 
