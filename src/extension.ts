@@ -51,12 +51,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			}
 		} else {
 			fileTreeProvider.checkedPaths.delete(targetPath);
-
+			for (const pathInSet of Array.from(fileTreeProvider.checkedPaths)) {
+				if (pathInSet.startsWith(startsWithSep)) {
+					fileTreeProvider.checkedPaths.delete(pathInSet);
+				}
+			}
 			const selectedAncestors: vscode.Uri[] = findAllSelectedAncestors(target);
 			for (const ancestor of selectedAncestors) {
 				fileTreeProvider.checkedPaths.delete(ancestor.fsPath);
 			}
-
 			if (selectedAncestors.length > 0) {
 				const topMost: vscode.Uri = selectedAncestors[selectedAncestors.length - 1];
 				await reselectSiblingsExcept(topMost, targetPath);
