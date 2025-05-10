@@ -37,6 +37,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		);
 	});
 
+	context.subscriptions.push(
+		vscode.window.onDidChangeActiveTextEditor(
+			(activeTextEditor) => {
+				if (activeTextEditor !== undefined) {
+					const documentUri: vscode.Uri = activeTextEditor.document.uri;
+					treeView.reveal(
+						documentUri,
+						{
+							select: true,
+							focus: false,
+							expand: true
+						}
+					).then(
+						() => {},
+						(error) => {
+							console.error("Could not reveal in tree:", error);
+						}
+					);
+				}
+			}
+		)
+	);
+
 	async function toggleSelection(target: vscode.Uri, isChecked: boolean): Promise<void> {
 		const targetPath: string = target.fsPath;
 		const startsWithSep: string = targetPath + path.sep;
