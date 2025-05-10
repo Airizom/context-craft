@@ -29,31 +29,14 @@
       ]
     },
     "commands": [
-      {
-        "command": "contextCraftFileBrowser.deleteItem",
-        "title": "Delete Selected Item(s)",
-        "category": "File Browser"
-      }
+      
     ],
     "menus": {
       "view/item/context": [
-        {
-          "command": "contextCraftFileBrowser.deleteItem",
-          "when": "view == contextCraftFileBrowser && viewItem == file",
-          "group": "navigation"
-        },
-        {
-          "command": "contextCraftFileBrowser.deleteItem",
-          "when": "view == contextCraftFileBrowser && viewItem == folder",
-          "group": "navigation"
-        }
+        
       ],
       "view/title": [
-        {
-          "command": "contextCraftFileBrowser.deleteItem",
-          "when": "view == contextCraftFileBrowser",
-          "group": "navigation"
-        }
+        
       ]
     }
   },

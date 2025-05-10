@@ -100,27 +100,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			}
 		}
 	}
-
-	/* ---------- delete command ---------- */
-	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			"contextCraftFileBrowser.deleteItem",
-			async (target?: vscode.Uri, multi?: vscode.Uri[]) => {
-				const urisToDelete: vscode.Uri[] =
-					multi?.length ? multi : target ? [target] : Array.from(fileTreeProvider.checkedPaths).map(vscode.Uri.file);
-
-				for (const uri of urisToDelete) {
-					try {
-						await vscode.workspace.fs.delete(uri, { recursive: true, useTrash: true });
-					} catch (err) {
-						const message: string = `Delete failed for ${uri.fsPath}: ${String(err)}`;
-						void vscode.window.showErrorMessage(message);
-					}
-				}
-				fileTreeProvider.refresh();
-			}
-		)
-	);
 }
 
 /* ---------- helpers ---------- */

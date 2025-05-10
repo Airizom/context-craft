@@ -23,13 +23,21 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	public async getChildren(element?: vscode.Uri): Promise<vscode.Uri[]> {
 		if (!element) {
 			const workspaces = vscode.workspace.workspaceFolders ?? [];
-			return workspaces.map((folder) => folder.uri);
+			const allChildren: vscode.Uri[] = [];
+			for (const ws of workspaces) {
+				const entries = await vscode.workspace.fs.readDirectory(ws.uri);
+				allChildren.push(
+					...entries.map(([name]) => vscode.Uri.joinPath(ws.uri, name))
+				);
+			}
+			return this.sortUris(allChildren);
 		}
-
 		const children = await vscode.workspace.fs.readDirectory(element);
 		const uris = children.map(([name]) => vscode.Uri.joinPath(element, name));
+		return this.sortUris(uris);
+	}
 
-		/* folders first, then files, both alpha-sort */
+	private sortUris(uris: vscode.Uri[]): vscode.Uri[] {
 		return uris.sort((a, b) => {
 			const aIsDir = this.isDirectorySync(a);
 			const bIsDir = this.isDirectorySync(b);
@@ -67,8 +75,10 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 
 	public getParent(element: vscode.Uri): vscode.ProviderResult<vscode.Uri> {
 		const parentPath = path.dirname(element.fsPath);
-		if (parentPath === element.fsPath) {
-			return undefined;
+		for (const ws of vscode.workspace.workspaceFolders ?? []) {
+			if (parentPath === ws.uri.fsPath) {
+				return undefined;
+			}
 		}
 		return vscode.Uri.file(parentPath);
 	}
