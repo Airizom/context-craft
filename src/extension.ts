@@ -1,8 +1,37 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { FileTreeProvider } from "./FileTreeProvider";
+import * as os from "os";
+import ignore from "ignore";
 
 const STATE_KEY_SELECTED = "contextCraft.selectedPaths";
+
+let ignoreParserCache: Map<string, { parser: ReturnType<typeof ignore>, mtime: number }> = new Map();
+
+async function getIgnoreParser(workspaceRootUri: vscode.Uri): Promise<ReturnType<typeof ignore>> {
+	const gitIgnoreUri = vscode.Uri.joinPath(workspaceRootUri, ".gitignore");
+	try {
+		const stat = await vscode.workspace.fs.stat(gitIgnoreUri);
+		const cacheKey = workspaceRootUri.fsPath;
+		const cached = ignoreParserCache.get(cacheKey);
+		if (cached && cached.mtime === stat.mtime) {
+			return cached.parser;
+		}
+		const gitIgnoreBytes = await vscode.workspace.fs.readFile(gitIgnoreUri);
+		let gitIgnoreContent: string;
+		if (typeof TextDecoder !== "undefined") {
+			const decoder = new TextDecoder("utf-8");
+			gitIgnoreContent = decoder.decode(gitIgnoreBytes);
+		} else {
+			gitIgnoreContent = Buffer.from(gitIgnoreBytes).toString("utf-8");
+		}
+		const parser = ignore().add(gitIgnoreContent);
+		ignoreParserCache.set(cacheKey, { parser, mtime: stat.mtime });
+		return parser;
+	} catch {
+		return ignore();
+	}
+}
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	/* ---------- provider & view ---------- */
@@ -22,6 +51,62 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			fileTreeProvider.checkedPaths.clear();
 			await context.workspaceState.update(STATE_KEY_SELECTED, []);
 			fileTreeProvider.refresh();
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("contextCraft.copySelected", async () => {
+			const workspaceFolders = vscode.workspace.workspaceFolders;
+			if (!workspaceFolders || workspaceFolders.length === 0) {
+				vscode.window.showWarningMessage(
+					"No workspace folder open. Cannot copy selected files."
+				);
+				return;
+			}
+			if (workspaceFolders.length > 1) {
+				vscode.window.showWarningMessage(
+					"Multi-root workspaces are not fully supported. Only the first root will be used."
+				);
+			}
+			const workspaceRootUri = workspaceFolders[0].uri;
+			const ignoreParser = await getIgnoreParser(workspaceRootUri);
+			const absoluteSelected = Array.from(fileTreeProvider.checkedPaths);
+			let absoluteFiles: string[] = [];
+			for (const abs of absoluteSelected) {
+				const sub = await collectFiles(vscode.Uri.file(abs), ignoreParser, workspaceRootUri);
+				absoluteFiles.push(...sub);
+			}
+			absoluteFiles = Array.from(new Set(absoluteFiles)).sort();
+			if (absoluteFiles.length === 0) {
+				vscode.window.showInformationMessage("No non-ignored files resolved.");
+				return;
+			}
+			let xmlChunks: string[] = ["<code_files>"];
+			for (const abs of absoluteFiles) {
+				const rel = path.relative(workspaceRootUri.fsPath, abs);
+				const fileName = path.basename(rel);
+				const xmlPath  = rel.split(path.sep).join("/");
+				if (await isBinary(abs)) {
+					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" binary="true"/>`);
+					continue;
+				}
+				const bytes   = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
+				if (bytes.byteLength > 200_000) {
+					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" truncated="true"/>`);
+					continue;
+				}
+				const content = Buffer.from(bytes).toString("utf-8");
+				const safe    = content.replaceAll("]]>" , "]]]]><![CDATA[>");
+				xmlChunks.push(
+					`  <file name="${fileName}" path="${xmlPath}"><![CDATA[`,
+					safe,
+					`]]></file>`
+				);
+			}
+			xmlChunks.push("</code_files>");
+			const xmlPayload = xmlChunks.join(os.EOL);
+			await vscode.env.clipboard.writeText(xmlPayload);
+			vscode.window.showInformationMessage(`Copied ${absoluteFiles.length} file node(s).`);
 		})
 	);
 
@@ -161,6 +246,55 @@ async function getParent(resourceUri: vscode.Uri): Promise<vscode.Uri | undefine
 		return undefined;
 	}
 	return vscode.Uri.file(parentPath);
+}
+
+async function collectFiles(
+	uri: vscode.Uri,
+	ignoreParser: ReturnType<typeof ignore>,
+	root: vscode.Uri
+): Promise<string[]> {
+	const rel = path.relative(root.fsPath, uri.fsPath).split(path.sep).join("/");
+	const stat = await vscode.workspace.fs.stat(uri);
+	if (stat.type === vscode.FileType.Directory) {
+		if (ignoreParser.ignores(rel + "/")) { return []; }
+		const children = await vscode.workspace.fs.readDirectory(uri);
+		const nested: string[] = [];
+		for (const [name] of children) {
+			const childUri = vscode.Uri.joinPath(uri, name);
+			nested.push(...await collectFiles(childUri, ignoreParser, root));
+		}
+		return nested;
+	}
+	return ignoreParser.ignores(rel) ? [] : [uri.fsPath];
+}
+
+async function isBinary(absPath: string): Promise<boolean> {
+	try {
+		if ('readFileStream' in vscode.workspace.fs && typeof (vscode.workspace.fs as any).readFileStream === 'function') {
+			const stream = await (vscode.workspace.fs as any).readFileStream(vscode.Uri.file(absPath));
+			const reader = stream.getReader();
+			let total = 0;
+			while (total < 512) {
+				const { value, done } = await reader.read();
+				if (done || !value) { break; }
+				for (let i = 0; i < value.length && total < 512; i++, total++) {
+					if (value[i] === 0) {
+						reader.releaseLock();
+						stream.cancel();
+						return true;
+					}
+				}
+			}
+			reader.releaseLock();
+			stream.cancel();
+			return false;
+		} else {
+			const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(absPath));
+			return bytes.subarray(0, 512).some(b => b === 0);
+		}
+	} catch {
+		return true;
+	}
 }
 
 /* istanbul ignore next */

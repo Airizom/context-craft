@@ -33,6 +33,11 @@
         "command": "contextCraft.unselectAll",
         "title": "Unselect All",
         "icon": "$(circle-slash)"
+      },
+      {
+        "command": "contextCraft.copySelected",
+        "title": "Copy Selected",
+        "icon": "$(copy)"
       }
     ],
     "menus": {
@@ -42,6 +47,11 @@
       "view/title": [
         {
           "command": "contextCraft.unselectAll",
+          "when": "view == contextCraftFileBrowser",
+          "group": "navigation"
+        },
+        {
+          "command": "contextCraft.copySelected",
           "when": "view == contextCraftFileBrowser",
           "group": "navigation"
         }
@@ -66,6 +76,9 @@
     "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.5.2"
+  },
+  "dependencies": {
+    "ignore": "^5.3.0"
   },
   "capabilities": {
     "untrustedWorkspaces": {
