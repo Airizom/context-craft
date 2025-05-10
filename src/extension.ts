@@ -19,8 +19,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	/* ---------- checkbox cascade ---------- */
 	treeView.onDidChangeCheckboxState(async (event) => {
-		for (const [clickedUri, newState] of event.items) {
-			await toggleSelection(clickedUri, newState === vscode.TreeItemCheckboxState.Checked);
+		for (const [clickedResourceUri, newState] of event.items) {
+			await toggleSelection(clickedResourceUri, newState === vscode.TreeItemCheckboxState.Checked);
 		}
 		fileTreeProvider.refresh();
 		void context.workspaceState.update(
@@ -31,11 +31,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	async function toggleSelection(target: vscode.Uri, isChecked: boolean): Promise<void> {
 		const absolutePath: string = target.fsPath;
+		const STARTS_WITH_SEP = absolutePath + path.sep;
 
 		if (isChecked) {
 			fileTreeProvider.checkedPaths.add(absolutePath);
 			for (const filePath of Array.from(fileTreeProvider.checkedPaths)) {
-				if (filePath !== absolutePath && filePath.startsWith(absolutePath + path.sep)) {
+				if (filePath !== absolutePath && filePath.startsWith(STARTS_WITH_SEP)) {
 					fileTreeProvider.checkedPaths.delete(filePath);
 				}
 			}
@@ -95,18 +96,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 /* ---------- helpers ---------- */
 
-async function isDirectory(uri: vscode.Uri): Promise<boolean> {
-	try {
-		const stat: vscode.FileStat = await vscode.workspace.fs.stat(uri);
-		return stat.type === vscode.FileType.Directory;
-	} catch {
-		return false;
-	}
-}
-
-async function getParent(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
-	const parentPath: string = path.dirname(uri.fsPath);
-	if (parentPath === uri.fsPath) {
+async function getParent(resourceUri: vscode.Uri): Promise<vscode.Uri | undefined> {
+	const parentPath: string = path.dirname(resourceUri.fsPath);
+	if (parentPath === resourceUri.fsPath) {
 		return undefined;
 	}
 	return vscode.Uri.file(parentPath);
