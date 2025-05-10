@@ -1,7 +1,25 @@
 {
   "name": "context-craft",
   "displayName": "context-craft",
-  "description": "",
+  "publisher": "airizom",
+  "description": "Cherry pick workspace files and copy them as XML payloads for LLM prompts.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Airizom/context-craft.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Airizom/context-craft/issues"
+  },
+  "homepage": "https://github.com/Airizom/context-craft#readme",
+  "license": "MIT",
+  "keywords": [
+    "llm",
+    "prompt",
+    "clipboard",
+    "xml",
+    "context",
+    "gitignore"
+  ],
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.96.2"
