@@ -20,6 +20,10 @@
     "context",
     "gitignore"
   ],
+  "galleryBanner": {
+    "color": "#4527A0",
+    "theme": "dark"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.96.2"
