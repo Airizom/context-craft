@@ -5,72 +5,104 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	public readonly checkedPaths: Set<string>;
 	private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
 	public readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
-
 	public readonly kindCache = new Map<string, vscode.FileType>();
 
 	public constructor(initialChecked: Set<string>) {
 		this.checkedPaths = initialChecked;
-
-		/* auto-refresh on FS changes */
 		const watcher = vscode.workspace.createFileSystemWatcher("**/*");
 		watcher.onDidCreate((uri) => this.refresh(uri));
 		watcher.onDidDelete((uri) => this.refresh(uri));
 		watcher.onDidChange((uri) => this.refresh(uri));
 	}
 
-	/* ---------- data ---------- */
-
 	public async getChildren(element?: vscode.Uri): Promise<vscode.Uri[]> {
 		if (!element) {
-			const workspaces = vscode.workspace.workspaceFolders ?? [];
-			const allChildren: vscode.Uri[] = [];
-			for (const ws of workspaces) {
+			const roots = vscode.workspace.workspaceFolders ?? [];
+			const childUris: vscode.Uri[] = [];
+			for (const ws of roots) {
 				const entries = await vscode.workspace.fs.readDirectory(ws.uri);
-				allChildren.push(
-					...entries.map(([name]) => vscode.Uri.joinPath(ws.uri, name))
-				);
+				for (const [name] of entries) {
+					const candidate = vscode.Uri.joinPath(ws.uri, name);
+					if (!(await this.isIgnored(candidate))) {
+						childUris.push(candidate);
+					}
+				}
 			}
-			return this.sortUris(allChildren);
+			return this.sortUris(childUris);
 		}
 		const children = await vscode.workspace.fs.readDirectory(element);
-		const uris = children.map(([name]) => vscode.Uri.joinPath(element, name));
-		return this.sortUris(uris);
+		const visible: vscode.Uri[] = [];
+		for (const [name] of children) {
+			const candidate = vscode.Uri.joinPath(element, name);
+			if (!(await this.isIgnored(candidate))) {
+				visible.push(candidate);
+			}
+		}
+		return this.sortUris(visible);
+	}
+
+	private async isIgnored(uri: vscode.Uri): Promise<boolean> {
+		return false;
 	}
 
 	private sortUris(uris: vscode.Uri[]): vscode.Uri[] {
 		return uris.sort((a, b) => {
 			const aIsDir = this.isDirectorySync(a);
 			const bIsDir = this.isDirectorySync(b);
-			if (aIsDir && !bIsDir) { return -1; }
-			if (!aIsDir && bIsDir) { return 1; }
+			if (aIsDir && !bIsDir) {
+				return -1;
+			}
+			if (!aIsDir && bIsDir) {
+				return 1;
+			}
 			return a.fsPath.localeCompare(b.fsPath);
 		});
 	}
 
 	public async getTreeItem(element: vscode.Uri): Promise<vscode.TreeItem> {
-		const isDir = await this.isDirectory(element);
-
-		const treeItem = new vscode.TreeItem(
+		const isDirectory: boolean = await this.isDirectory(element);
+		const treeItem: vscode.TreeItem = new vscode.TreeItem(
 			element,
-			isDir ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
+			isDirectory ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
 		);
 
 		treeItem.label = path.basename(element.fsPath);
 		treeItem.resourceUri = element;
-		treeItem.contextValue = isDir ? "folder" : "file";
-		treeItem.checkboxState = this.checkedPaths.has(element.fsPath)
-			? vscode.TreeItemCheckboxState.Checked
-			: vscode.TreeItemCheckboxState.Unchecked;
+		treeItem.contextValue = isDirectory ? "folder" : "file";
 
-		if (!isDir) {
+		treeItem.checkboxState = this.computeCheckboxState(element, isDirectory);
+
+		if (!isDirectory) {
 			treeItem.command = {
 				title: "Open File",
 				command: "vscode.open",
 				arguments: [element]
 			};
 		}
-
 		return treeItem;
+	}
+
+	private computeCheckboxState(element: vscode.Uri, isDirectory: boolean): vscode.TreeItemCheckboxState {
+		const fullPath: string = element.fsPath;
+
+		if (this.checkedPaths.has(fullPath)) {
+			return vscode.TreeItemCheckboxState.Checked;
+		}
+
+		let current: vscode.Uri | undefined = vscode.Uri.file(path.dirname(fullPath));
+		while (current.fsPath !== fullPath) {
+			if (this.checkedPaths.has(current.fsPath)) {
+				return vscode.TreeItemCheckboxState.Checked;
+			}
+			const parentPath: string = path.dirname(current.fsPath);
+			if (parentPath === current.fsPath) {
+				break;
+			}
+			current = vscode.Uri.file(parentPath);
+		}
+
+		// Indeterminate state is not supported in this API version, fallback to Unchecked
+		return vscode.TreeItemCheckboxState.Unchecked;
 	}
 
 	public getParent(element: vscode.Uri): vscode.ProviderResult<vscode.Uri> {
@@ -86,8 +118,6 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	public refresh(uri?: vscode.Uri): void {
 		this.onDidChangeTreeDataEmitter.fire(uri);
 	}
-
-	/* ---------- helpers ---------- */
 
 	private async isDirectory(uri: vscode.Uri): Promise<boolean> {
 		if (!this.kindCache.has(uri.fsPath)) {

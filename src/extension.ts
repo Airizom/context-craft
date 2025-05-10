@@ -6,8 +6,9 @@ const STATE_KEY_SELECTED = "contextCraft.selectedPaths";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	/* ---------- provider & view ---------- */
-	const savedPaths: string[] = context.workspaceState.get<string[]>(STATE_KEY_SELECTED) ?? [];
-	const fileTreeProvider = new FileTreeProvider(new Set(savedPaths));
+	const persisted: string[] =
+		context.workspaceState.get<string[]>(STATE_KEY_SELECTED) ?? [];
+	const fileTreeProvider = new FileTreeProvider(new Set(persisted));
 
 	const treeView = vscode.window.createTreeView("contextCraftFileBrowser", {
 		treeDataProvider: fileTreeProvider,
@@ -18,87 +19,77 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	/* ---------- checkbox cascade ---------- */
 	treeView.onDidChangeCheckboxState(async (event) => {
-		for (const [item, newState] of event.items) {
-			await handleCheckboxChange(item, newState === vscode.TreeItemCheckboxState.Checked);
+		for (const [clickedUri, newState] of event.items) {
+			await toggleSelection(clickedUri, newState === vscode.TreeItemCheckboxState.Checked);
 		}
 		fileTreeProvider.refresh();
-		void context.workspaceState.update(STATE_KEY_SELECTED, Array.from(fileTreeProvider.checkedPaths));
+		void context.workspaceState.update(
+			STATE_KEY_SELECTED,
+			Array.from(fileTreeProvider.checkedPaths)
+		);
 	});
 
-	async function handleCheckboxChange(uri: vscode.Uri, isChecked: boolean): Promise<void> {
-		const absolutePath: string = uri.fsPath;
+	async function toggleSelection(target: vscode.Uri, isChecked: boolean): Promise<void> {
+		const absolutePath: string = target.fsPath;
+
 		if (isChecked) {
 			fileTreeProvider.checkedPaths.add(absolutePath);
+			for (const filePath of Array.from(fileTreeProvider.checkedPaths)) {
+				if (filePath !== absolutePath && filePath.startsWith(absolutePath + path.sep)) {
+					fileTreeProvider.checkedPaths.delete(filePath);
+				}
+			}
 		} else {
 			fileTreeProvider.checkedPaths.delete(absolutePath);
 		}
-		if (await isDirectory(uri)) {
-			const descendants: vscode.Uri[] = await collectDescendants(uri);
-			for (const descendant of descendants) {
-				if (isChecked) {
-					fileTreeProvider.checkedPaths.add(descendant.fsPath);
+
+		await rebalanceParents(target);
+	}
+
+	async function rebalanceParents(startLeaf: vscode.Uri): Promise<void> {
+		let cursor: vscode.Uri | undefined = await getParent(startLeaf);
+		while (cursor !== undefined) {
+			const children: vscode.Uri[] = await fileTreeProvider.getChildren(cursor);
+			let checkedCount: number = 0;
+			let uncheckedCount: number = 0;
+
+			for (const child of children) {
+				const childPath: string = child.fsPath;
+				if (fileTreeProvider.checkedPaths.has(childPath)) {
+					checkedCount += 1;
 				} else {
-					fileTreeProvider.checkedPaths.delete(descendant.fsPath);
-				}
-			}
-		} else if (!isChecked) {
-			await maybeUncheckEmptyParent(uri);
-		}
-	}
-
-	async function collectDescendants(root: vscode.Uri): Promise<vscode.Uri[]> {
-		return vscode.window.withProgress(
-			{
-				location: vscode.ProgressLocation.Window,
-				title: `Selecting “${path.basename(root.fsPath)}”…`,
-				cancellable: false
-			},
-			async (progress) => {
-				const collected: vscode.Uri[] = [];
-				const directoryQueue: vscode.Uri[] = [root];
-				const batchSize: number = 64;
-				while (directoryQueue.length > 0) {
-					const workBatch: vscode.Uri[] = directoryQueue.splice(0, batchSize);
-					const batchResults: Array<[readonly [string, vscode.FileType][], vscode.Uri]> =
-						await Promise.all(
-							workBatch.map(async (directory) => {
-								const entries = await vscode.workspace.fs.readDirectory(directory);
-								return [entries, directory] as const;
-							})
-						);
-					for (const [entries, directory] of batchResults) {
-						for (const [name, fileType] of entries) {
-							const child: vscode.Uri = vscode.Uri.joinPath(directory, name);
-							collected.push(child);
-							fileTreeProvider.kindCache.set(child.fsPath, fileType);
-							if (fileType === vscode.FileType.Directory) {
-								directoryQueue.push(child);
-							}
-						}
+					if (hasSelectedAncestor(child)) {
+						checkedCount += 1;
+					} else {
+						uncheckedCount += 1;
 					}
-					progress.report({
-						message: `${collected.length.toLocaleString()} items scanned`
-					});
 				}
-				return collected;
 			}
-		);
+
+			const parentPath: string = cursor.fsPath;
+			if (checkedCount === 0) {
+				fileTreeProvider.checkedPaths.delete(parentPath);
+			} else if (uncheckedCount === 0) {
+				fileTreeProvider.checkedPaths.add(parentPath);
+			} else {
+				fileTreeProvider.checkedPaths.delete(parentPath);
+			}
+
+			cursor = await getParent(cursor);
+		}
 	}
 
-	async function maybeUncheckEmptyParent(uri: vscode.Uri): Promise<void> {
-		const parentUri: vscode.Uri | undefined = await getParent(uri);
-		if (parentUri === undefined) {
-			return;
-		}
-		if (await isDirectory(parentUri)) {
-			const children: vscode.Uri[] = await fileTreeProvider.getChildren(parentUri);
-			const anyChildChecked: boolean = children.some(
-				(child) => fileTreeProvider.checkedPaths.has(child.fsPath)
-			);
-			if (!anyChildChecked) {
-				fileTreeProvider.checkedPaths.delete(parentUri.fsPath);
+	function hasSelectedAncestor(target: vscode.Uri): boolean {
+		let current: vscode.Uri | undefined = target;
+		while (current !== undefined) {
+			if (fileTreeProvider.checkedPaths.has(current.fsPath)) {
+				return true;
 			}
+			current = path.dirname(current.fsPath) === current.fsPath
+				? undefined
+				: vscode.Uri.file(path.dirname(current.fsPath));
 		}
+		return false;
 	}
 }
 

@@ -63,5 +63,6 @@
     "untrustedWorkspaces": {
       "supported": false
     }
-  }
+  },
+  "extensionDependencies": ["vscode.git"]
 }
