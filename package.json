@@ -9,14 +9,15 @@
   "categories": [
     "Other"
   ],
+  "icon": "resources/icon.png",
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
           "id": "contextCraftExplorer",
-          "title": "My Explorer",
-          "icon": "resources/my-icon.svg"
+          "title": "Context Craft",
+          "icon": "resources/activity-bar-icon.png"
         }
       ]
     },
