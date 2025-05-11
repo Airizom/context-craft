@@ -1,6 +1,6 @@
 {
   "name": "context-craft",
-  "displayName": "context-craft",
+  "displayName": "Context Craft",
   "publisher": "airizom",
   "description": "Cherry pick workspace files and copy them as XML payloads for LLM prompts.",
   "repository": {
@@ -20,11 +20,7 @@
     "context",
     "gitignore"
   ],
-  "galleryBanner": {
-    "color": "#4527A0",
-    "theme": "dark"
-  },
-  "version": "0.0.1",
+  "version": "1.0.0",
   "engines": {
     "vscode": "^1.96.2"
   },
