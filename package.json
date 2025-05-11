@@ -29,6 +29,11 @@
   ],
   "icon": "resources/icon.png",
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onView:contextCraftFileBrowser",
+    "onCommand:contextCraft.unselectAll",
+    "onCommand:contextCraft.copySelected"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
