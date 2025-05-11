@@ -1,7 +1,5 @@
 # Context Craft
 
-<!-- Badges: Marketplace | License | Version -->
-
 **Cherry-pick exactly the files you need and copy them to your clipboard as a clean XML payload—perfect for LLM prompts.**
 
 ---
@@ -22,12 +20,6 @@ Context Craft is a VS Code extension that lets you select files or folders from 
 - **Auto-Reveal Active File**: Jump to the file you are editing
 - **.gitignore Respect**: Ignored files never clutter the list
 - **Session-Persistent Selection**: Selections survive reloads
-
----
-
-## Screenshots
-
-<!-- Add GIF or screenshot here -->
 
 ---
 
