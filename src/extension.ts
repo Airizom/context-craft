@@ -84,7 +84,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			xmlChunks.push("</code_files>");
 			const xmlPayload = xmlChunks.join(os.EOL);
 			await vscode.env.clipboard.writeText(xmlPayload);
-			vscode.window.showInformationMessage(`Copied ${absoluteFiles.length} file node(s).`);
+			vscode.window.showInformationMessage(`Copied ${absoluteFiles.length} file${absoluteFiles.length === 1 ? "" : "s"} as XML. Paste anywhere to share or prompt an LLM.`);
 		})
 	);
 
