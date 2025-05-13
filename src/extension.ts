@@ -63,21 +63,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			for (const abs of absoluteFiles) {
 				const rel = path.relative(workspaceRootUri.fsPath, abs);
 				const fileName = path.basename(rel);
-				const xmlPath  = rel.split(path.sep).join("/");
+				const xmlPath = rel.split(path.sep).join("/");
 				if (await isBinary(abs)) {
 					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" binary="true"/>`);
 					continue;
 				}
-				const bytes   = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
+				const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
 				if (bytes.byteLength > 200_000) {
 					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" truncated="true"/>`);
 					continue;
 				}
-				const content = Buffer.from(bytes).toString("utf-8");
-				const safe = content.replaceAll("]]>" , "]]]]><![CDATA[>");
+				const original = Buffer.from(bytes).toString("utf-8");
+				const escaped = original.replaceAll("]]>" , "]]]]><![CDATA[>");
 				xmlChunks.push(
 					`  <file name="${fileName}" path="${xmlPath}"><![CDATA[`,
-					safe,
+					escaped,
 					`]]></file>`
 				);
 			}
@@ -103,22 +103,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor(
 			(activeTextEditor) => {
-				if (activeTextEditor !== undefined) {
-					const documentUri: vscode.Uri = activeTextEditor.document.uri;
-					treeView.reveal(
-						documentUri,
-						{
-							select: true,
-							focus: false,
-							expand: true
-						}
-					).then(
-						() => {},
-						(error) => {
-							console.error("Could not reveal in tree:", error);
-						}
-					);
+				if (activeTextEditor === undefined) {
+					return;
 				}
+				if (!treeView.visible) {
+					return;
+				}
+				const documentUri = activeTextEditor.document.uri;
+				treeView.reveal(
+					documentUri,
+					{
+						select: true,
+						focus: false,
+						expand: true
+					}
+				).then(undefined, (error: unknown) => {
+					console.error("Could not reveal in tree:", error);
+				});
 			}
 		)
 	);
