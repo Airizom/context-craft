@@ -7,12 +7,29 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	public readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 	public readonly kindCache = new Map<string, vscode.FileType>();
 
-	public constructor(initialChecked: Set<string>) {
+	public constructor(initialChecked: Set<string>, context: vscode.ExtensionContext) {
 		this.checkedPaths = initialChecked;
-		const watcher = vscode.workspace.createFileSystemWatcher("**/*");
-		watcher.onDidCreate((uri) => this.refresh(uri));
-		watcher.onDidDelete((uri) => this.refresh(uri));
-		watcher.onDidChange((uri) => this.refresh(uri));
+		const watcher = vscode.workspace.createFileSystemWatcher(
+			"**/*",
+			false,
+			false,
+			false
+		);
+		watcher.onDidCreate((uri) => {
+			this.kindCache.delete(uri.fsPath);
+			this.kindCache.delete(path.dirname(uri.fsPath));
+			this.refresh();
+		});
+		watcher.onDidDelete((uri) => {
+			this.kindCache.delete(uri.fsPath);
+			this.kindCache.delete(path.dirname(uri.fsPath));
+			this.refresh();
+		});
+		watcher.onDidChange((uri) => {
+			this.kindCache.delete(uri.fsPath);
+			this.refresh();
+		});
+		context.subscriptions.push(watcher);
 	}
 
 	public async getChildren(element?: vscode.Uri): Promise<vscode.Uri[]> {

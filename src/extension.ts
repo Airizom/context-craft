@@ -15,7 +15,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	/* ---------- provider & view ---------- */
 	const persisted: string[] =
 		context.workspaceState.get<string[]>(STATE_KEY_SELECTED) ?? [];
-	const fileTreeProvider = new FileTreeProvider(new Set(persisted));
+	const fileTreeProvider = new FileTreeProvider(new Set(persisted), context);
 
 	const treeView = vscode.window.createTreeView("contextCraftFileBrowser", {
 		treeDataProvider: fileTreeProvider,
