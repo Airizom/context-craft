@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-05-16
+
+- Added a "Refresh" button to the tree view title menu to manually refresh the file browser.
+
 ## [1.1.0] - 2025-05-15 
 
 - Token count display: Shows estimated token count for selected files in the status bar and tree view message.

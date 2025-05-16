@@ -20,7 +20,7 @@
     "context",
     "gitignore"
   ],
-  "version": "1.1.0",
+  "version": "1.2.0",
   "engines": {
     "vscode": "^1.96.2"
   },
@@ -58,6 +58,11 @@
         "command": "contextCraft.copySelected",
         "title": "Copy Selected",
         "icon": "$(copy)"
+      },
+      {
+        "command": "contextCraft.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -72,6 +77,11 @@
           "command": "contextCraft.copySelected",
           "when": "view == contextCraftFileBrowser",
           "group": "navigation"
+        },
+        {
+          "command": "contextCraft.refresh",
+          "when": "view == contextCraftFileBrowser",
+          "group": "navigation@0"
         }
       ]
     }

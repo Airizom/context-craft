@@ -14,25 +14,9 @@ const STATE_KEY_SELECTED = "contextCraft.selectedPaths";
 export let ignoreParserCache: Map<string, { parser: ReturnType<typeof ignore>, mtime: number }> = new Map();
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-	/* ---------- provider & view ---------- */
-	const persisted: string[] =
-		context.workspaceState.get<string[]>(STATE_KEY_SELECTED) ?? [];
-	const fileTreeProvider = new FileTreeProvider(new Set(persisted), context);
-
-	const treeView = vscode.window.createTreeView("contextCraftFileBrowser", {
-		treeDataProvider: fileTreeProvider,
-		showCollapseAll: true,
-		canSelectMany: true,
-		manageCheckboxStateManually: true
-	});
-
-	const tokenStatusBar = vscode.window.createStatusBarItem(
-		vscode.StatusBarAlignment.Left,
-		95
-	);
-	tokenStatusBar.tooltip = "Tokens that will be copied by Context Craft";
-	tokenStatusBar.show();
-	context.subscriptions.push(tokenStatusBar);
+	let fileTreeProvider: FileTreeProvider;
+	let treeView: vscode.TreeView<vscode.Uri>;
+	let tokenStatusBar: vscode.StatusBarItem;
 
 	async function resolveSelectedFiles(
 		fileTree: FileTreeProvider,
@@ -49,8 +33,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const debouncedUpdate = debounce(async () => {
 		const root = vscode.workspace.workspaceFolders?.[0]?.uri;
 		if (!root) { 
-			tokenStatusBar.text = `$(symbol-string) No workspace`;
-			treeView.message = `No workspace folder`;
+			if (tokenStatusBar) {
+				tokenStatusBar.text = `$(symbol-string) No workspace`;
+			}
+			if (treeView) {
+				treeView.message = `No workspace folder`;
+			}
 			return; 
 		}
 		const resolvedFiles = await resolveSelectedFiles(fileTreeProvider, root);
@@ -60,9 +48,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		const fileText = `${numFiles} file${numFiles === 1 ? "" : "s"}`;
 		const tokenText = `${tokens.toLocaleString()} tokens`;
 
-		tokenStatusBar.text = `$(symbol-string) ${fileText} | ${tokenText}`;
-		treeView.message = `${fileText} | ${tokenText}`;
+		if (tokenStatusBar) {
+			tokenStatusBar.text = `$(symbol-string) ${fileText} | ${tokenText}`;
+		}
+		if (treeView) {
+			treeView.message = `${fileText} | ${tokenText}`;
+		}
 	}, 200);
+
+	const persisted: string[] =
+		context.workspaceState.get<string[]>(STATE_KEY_SELECTED) ?? [];
+	fileTreeProvider = new FileTreeProvider(new Set(persisted), context, debouncedUpdate);
+
+	treeView = vscode.window.createTreeView("contextCraftFileBrowser", {
+		treeDataProvider: fileTreeProvider,
+		showCollapseAll: true,
+		canSelectMany: true,
+		manageCheckboxStateManually: true
+	});
+
+	tokenStatusBar = vscode.window.createStatusBarItem(
+		vscode.StatusBarAlignment.Left,
+		95
+	);
+	tokenStatusBar.tooltip = "Tokens that will be copied by Context Craft";
+	tokenStatusBar.show();
+	context.subscriptions.push(tokenStatusBar);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("contextCraft.unselectAll", async () => {
@@ -134,6 +145,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				`Copied ${absoluteFiles.length} file${absoluteFiles.length === 1 ? "" : "s"} ` +
 				`(${tokenCount} tokens) as XML. Paste anywhere to share or prompt an LLM.`
 			);
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand("contextCraft.refresh", () => {
+			fileTreeProvider.refresh();
+			debouncedUpdate();
 		})
 	);
 

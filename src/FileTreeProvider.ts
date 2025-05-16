@@ -6,9 +6,11 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
 	public readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 	public readonly kindCache = new Map<string, vscode.FileType>();
+	private readonly debouncedUpdate: () => void;
 
-	public constructor(initialChecked: Set<string>, context: vscode.ExtensionContext) {
+	public constructor(initialChecked: Set<string>, context: vscode.ExtensionContext, debouncedUpdate: () => void) {
 		this.checkedPaths = initialChecked;
+		this.debouncedUpdate = debouncedUpdate;
 		const watcher = vscode.workspace.createFileSystemWatcher(
 			"**/*",
 			false,
@@ -19,15 +21,18 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 			this.kindCache.delete(uri.fsPath);
 			this.kindCache.delete(path.dirname(uri.fsPath));
 			this.refresh();
+			this.debouncedUpdate();
 		});
 		watcher.onDidDelete((uri) => {
 			this.kindCache.delete(uri.fsPath);
 			this.kindCache.delete(path.dirname(uri.fsPath));
 			this.refresh();
+			this.debouncedUpdate();
 		});
 		watcher.onDidChange((uri) => {
 			this.kindCache.delete(uri.fsPath);
 			this.refresh();
+			this.debouncedUpdate();
 		});
 		context.subscriptions.push(watcher);
 	}
