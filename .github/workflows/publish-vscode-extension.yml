@@ -11,7 +11,6 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,7 +30,10 @@ jobs:
           npm run compile
 
       - name: Package VSIX
-        run: npx vsce package
+        id: package-vsix
+        run: |
+          npx vsce package
+          echo "vsix-path=$(ls *.vsix)" >> $GITHUB_OUTPUT
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
@@ -39,11 +41,27 @@ jobs:
           name: context-craft-vsix
           path: "*.vsix"
 
+  publish-vscode-marketplace:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: context-craft-vsix
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: npx vsce publish --packagePath $(ls *.vsix) -p "$VSCE_PAT"
 
+  publish-open-vsx:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: context-craft-vsix
       - name: Publish to Open VSX
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
