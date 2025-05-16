@@ -14,8 +14,9 @@ Context Craft is a VS Code extension that lets you select files or folders from 
 
 - **Dedicated File Browser**: Separate activity-bar view with workspace tree and checkboxes
 - **Smart Multi-Select**: Select folders or files; parent/child check-states sync automatically
+- **Token Count Display**: See the estimated token count for your selection in the status bar and view header (e.g., "N file(s) | M tokens")
 - **One-Click Clipboard Export**: Export selected files as XML with a single click
-- **Binary & Large File Handling**: Binary files flagged; large files (over 200 kB) are truncated
+- **Binary & Large File Handling**: Binary files flagged; large files (over 200 kB) are truncated. Checks are optimized for performance.
 - **Unselect All**: Instantly clear your selection
 - **Auto-Reveal Active File**: Jump to the file you are editing
 - **.gitignore Respect**: Ignored files never clutter the list
@@ -44,7 +45,7 @@ code --install-extension context-craft-1.0.0.vsix
 ## Usage
 
 1. Click the **Context Craft** icon in the activity bar
-2. Tick the files or folders you want
+2. Tick the files or folders you want. The status bar and view header will show an estimated token count (e.g., "N file(s) | M tokens")
 3. Press the **Copy Selected** toolbar button or run the command from the palette (`Ctrl+Shift+P`)
 4. Paste the XML anywhere—ChatGPT, Claude, a prompt file, etc.
 5. Need a fresh start? Hit **Unselect All**

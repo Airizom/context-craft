@@ -20,7 +20,7 @@
     "context",
     "gitignore"
   ],
-  "version": "1.0.3",
+  "version": "1.1.0",
   "engines": {
     "vscode": "^1.96.2"
   },
@@ -29,11 +29,7 @@
   ],
   "icon": "resources/icon.png",
   "main": "./out/extension.js",
-  "activationEvents": [
-    "onView:contextCraftFileBrowser",
-    "onCommand:contextCraft.unselectAll",
-    "onCommand:contextCraft.copySelected"
-  ],
+  "activationEvents": [],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -65,9 +61,7 @@
       }
     ],
     "menus": {
-      "view/item/context": [
-        
-      ],
+      "view/item/context": [],
       "view/title": [
         {
           "command": "contextCraft.unselectAll",
@@ -91,17 +85,18 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.96.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.96.2",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
-    "eslint": "^9.25.1",
-    "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
+    "gpt-tokenizer": "2.9.0",
     "ignore": "^5.3.0"
   },
   "capabilities": {
@@ -109,5 +104,7 @@
       "supported": false
     }
   },
-  "extensionDependencies": ["vscode.git"]
+  "extensionDependencies": [
+    "vscode.git"
+  ]
 }

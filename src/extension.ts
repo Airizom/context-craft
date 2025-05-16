@@ -5,7 +5,9 @@ import * as os from "os";
 import ignore from "ignore";
 import { getIgnoreParser } from "./getIgnoreParser";
 import { collectFiles, isBinary } from "./utils";
+import { debounce } from "./debounce";
 import { toggleSelection } from "./selectionLogic";
+import { countTokens } from "./tokenCounter";
 
 const STATE_KEY_SELECTED = "contextCraft.selectedPaths";
 
@@ -24,11 +26,50 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		manageCheckboxStateManually: true
 	});
 
+	const tokenStatusBar = vscode.window.createStatusBarItem(
+		vscode.StatusBarAlignment.Left,
+		95
+	);
+	tokenStatusBar.tooltip = "Tokens that will be copied by Context Craft";
+	tokenStatusBar.show();
+	context.subscriptions.push(tokenStatusBar);
+
+	async function resolveSelectedFiles(
+		fileTree: FileTreeProvider,
+		root: vscode.Uri
+	): Promise<string[]> {
+		const ignoreParser = await getIgnoreParser(root);
+		let files: string[] = [];
+		for (const sel of fileTree.checkedPaths) {
+			files.push(...await collectFiles(vscode.Uri.file(sel), ignoreParser, root));
+		}
+		return Array.from(new Set(files));
+	}
+
+	const debouncedUpdate = debounce(async () => {
+		const root = vscode.workspace.workspaceFolders?.[0]?.uri;
+		if (!root) { 
+			tokenStatusBar.text = `$(symbol-string) No workspace`;
+			treeView.message = `No workspace folder`;
+			return; 
+		}
+		const resolvedFiles = await resolveSelectedFiles(fileTreeProvider, root);
+		const numFiles = resolvedFiles.length;
+		const tokens = await countTokens(resolvedFiles);
+
+		const fileText = `${numFiles} file${numFiles === 1 ? "" : "s"}`;
+		const tokenText = `${tokens.toLocaleString()} tokens`;
+
+		tokenStatusBar.text = `$(symbol-string) ${fileText} | ${tokenText}`;
+		treeView.message = `${fileText} | ${tokenText}`;
+	}, 200);
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand("contextCraft.unselectAll", async () => {
 			fileTreeProvider.checkedPaths.clear();
 			await context.workspaceState.update(STATE_KEY_SELECTED, []);
 			fileTreeProvider.refresh();
+			debouncedUpdate();
 		})
 	);
 
@@ -47,14 +88,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				);
 			}
 			const workspaceRootUri = workspaceFolders[0].uri;
-			const ignoreParser = await getIgnoreParser(workspaceRootUri);
-			const absoluteSelected = Array.from(fileTreeProvider.checkedPaths);
-			let absoluteFiles: string[] = [];
-			for (const abs of absoluteSelected) {
-				const sub = await collectFiles(vscode.Uri.file(abs), ignoreParser, workspaceRootUri);
-				absoluteFiles.push(...sub);
-			}
-			absoluteFiles = Array.from(new Set(absoluteFiles)).sort();
+			const absoluteFiles = (await resolveSelectedFiles(fileTreeProvider, workspaceRootUri)).sort();
+
 			if (absoluteFiles.length === 0) {
 				vscode.window.showInformationMessage("No non-ignored files resolved.");
 				return;
@@ -64,15 +99,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				const rel = path.relative(workspaceRootUri.fsPath, abs);
 				const fileName = path.basename(rel);
 				const xmlPath = rel.split(path.sep).join("/");
+				
 				if (await isBinary(abs)) {
 					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" binary="true"/>`);
 					continue;
 				}
-				const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
-				if (bytes.byteLength > 200_000) {
-					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" truncated="true"/>`);
+
+				try {
+					const stats = await vscode.workspace.fs.stat(vscode.Uri.file(abs));
+					if (stats.size > 200_000) {
+						xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" truncated="true"/>`);
+						continue;
+					}
+				} catch (statError) {
+					console.error(`Error stating file ${abs} for XML generation:`, statError);
+					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" error="true" comment="Error checking file size"/>`);
 					continue;
 				}
+
+				const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
 				const original = Buffer.from(bytes).toString("utf-8");
 				const escaped = original.replaceAll("]]>" , "]]]]><![CDATA[>");
 				xmlChunks.push(
@@ -83,8 +128,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			}
 			xmlChunks.push("</code_files>");
 			const xmlPayload = xmlChunks.join(os.EOL);
+			const tokenCount = await countTokens(absoluteFiles);
 			await vscode.env.clipboard.writeText(xmlPayload);
-			vscode.window.showInformationMessage(`Copied ${absoluteFiles.length} file${absoluteFiles.length === 1 ? "" : "s"} as XML. Paste anywhere to share or prompt an LLM.`);
+			vscode.window.showInformationMessage(
+				`Copied ${absoluteFiles.length} file${absoluteFiles.length === 1 ? "" : "s"} ` +
+				`(${tokenCount} tokens) as XML. Paste anywhere to share or prompt an LLM.`
+			);
 		})
 	);
 
@@ -98,7 +147,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			STATE_KEY_SELECTED,
 			Array.from(fileTreeProvider.checkedPaths)
 		);
+		debouncedUpdate();
 	});
+
+	debouncedUpdate();
 
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor(
