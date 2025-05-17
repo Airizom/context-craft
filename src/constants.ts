@@ -1,0 +1,1 @@
+export const STATE_KEY_SELECTED = "contextCraft.selectedPaths"; 

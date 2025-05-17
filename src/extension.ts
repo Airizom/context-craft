@@ -1,15 +1,15 @@
-import * as vscode from "vscode";
-import * as path from "path";
-import { FileTreeProvider } from "./FileTreeProvider";
-import * as os from "os";
 import ignore from "ignore";
-import { getIgnoreParser } from "./getIgnoreParser";
-import { collectFiles, isBinary } from "./utils";
+import * as vscode from "vscode";
+import { registerCopySelectedCommand } from "./commands/copySelected";
+import { registerRefreshCommand } from "./commands/refresh";
+import { registerUnselectAllCommand } from "./commands/unselectAll";
+import { STATE_KEY_SELECTED } from "./constants";
 import { debounce } from "./debounce";
+import { FileTreeProvider } from "./FileTreeProvider";
+import { getIgnoreParser } from "./getIgnoreParser";
 import { toggleSelection } from "./selectionLogic";
 import { countTokens } from "./tokenCounter";
-
-const STATE_KEY_SELECTED = "contextCraft.selectedPaths";
+import { collectFiles } from "./utils";
 
 export let ignoreParserCache: Map<string, { parser: ReturnType<typeof ignore>, mtime: number }> = new Map();
 
@@ -75,87 +75,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	tokenStatusBar.show();
 	context.subscriptions.push(tokenStatusBar);
 
-	context.subscriptions.push(
-		vscode.commands.registerCommand("contextCraft.unselectAll", async () => {
-			fileTreeProvider.checkedPaths.clear();
-			await context.workspaceState.update(STATE_KEY_SELECTED, []);
-			fileTreeProvider.refresh();
-			debouncedUpdate();
-		})
-	);
+	registerUnselectAllCommand(context, fileTreeProvider, debouncedUpdate);
+	registerCopySelectedCommand(context, fileTreeProvider, resolveSelectedFiles);
+	registerRefreshCommand(context, fileTreeProvider, debouncedUpdate);
 
-	context.subscriptions.push(
-		vscode.commands.registerCommand("contextCraft.copySelected", async () => {
-			const workspaceFolders = vscode.workspace.workspaceFolders;
-			if (!workspaceFolders || workspaceFolders.length === 0) {
-				vscode.window.showWarningMessage(
-					"No workspace folder open. Cannot copy selected files."
-				);
-				return;
-			}
-			if (workspaceFolders.length > 1) {
-				vscode.window.showWarningMessage(
-					"Multi-root workspaces are not fully supported. Only the first root will be used."
-				);
-			}
-			const workspaceRootUri = workspaceFolders[0].uri;
-			const absoluteFiles = (await resolveSelectedFiles(fileTreeProvider, workspaceRootUri)).sort();
-
-			if (absoluteFiles.length === 0) {
-				vscode.window.showInformationMessage("No non-ignored files resolved.");
-				return;
-			}
-			let xmlChunks: string[] = ["<code_files>"];
-			for (const abs of absoluteFiles) {
-				const rel = path.relative(workspaceRootUri.fsPath, abs);
-				const fileName = path.basename(rel);
-				const xmlPath = rel.split(path.sep).join("/");
-				
-				if (await isBinary(abs)) {
-					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" binary="true"/>`);
-					continue;
-				}
-
-				try {
-					const stats = await vscode.workspace.fs.stat(vscode.Uri.file(abs));
-					if (stats.size > 200_000) {
-						xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" truncated="true"/>`);
-						continue;
-					}
-				} catch (statError) {
-					console.error(`Error stating file ${abs} for XML generation:`, statError);
-					xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" error="true" comment="Error checking file size"/>`);
-					continue;
-				}
-
-				const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
-				const original = Buffer.from(bytes).toString("utf-8");
-				const escaped = original.replaceAll("]]>" , "]]]]><![CDATA[>");
-				xmlChunks.push(
-					`  <file name="${fileName}" path="${xmlPath}"><![CDATA[`,
-					escaped,
-					`]]></file>`
-				);
-			}
-			xmlChunks.push("</code_files>");
-			const xmlPayload = xmlChunks.join(os.EOL);
-			const tokenCount = await countTokens(absoluteFiles);
-			await vscode.env.clipboard.writeText(xmlPayload);
-			vscode.window.showInformationMessage(
-				`Copied ${absoluteFiles.length} file${absoluteFiles.length === 1 ? "" : "s"} ` +
-				`(${tokenCount} tokens) as XML. Paste anywhere to share or prompt an LLM.`
-			);
-		})
-	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand("contextCraft.refresh", () => {
-			fileTreeProvider.refresh();
-			debouncedUpdate();
-		})
-	);
-
-	/* ---------- checkbox cascade ---------- */
 	treeView.onDidChangeCheckboxState(async (event) => {
 		for (const [clickedResourceUri, newState] of event.items) {
 			await toggleSelection(clickedResourceUri, newState === vscode.TreeItemCheckboxState.Checked, fileTreeProvider);
@@ -195,7 +118,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	);
 }
 
-/* istanbul ignore next */
 export function deactivate(): void {
-	/* noop */
+	// noop
 }
