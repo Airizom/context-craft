@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.2.1] - 2025-05-17
+
+- Update the icon and activity bar icon.
+
 ## [1.2.0] - 2025-05-16
 
 - Added a "Refresh" button to the tree view title menu to manually refresh the file browser.
