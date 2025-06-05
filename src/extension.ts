@@ -80,14 +80,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerRefreshCommand(context, fileTreeProvider, debouncedUpdate);
 
 	treeView.onDidChangeCheckboxState(async (event) => {
+		const togglePromises: Promise<void>[] = [];
+
 		for (const [clickedResourceUri, newState] of event.items) {
-			await toggleSelection(clickedResourceUri, newState === vscode.TreeItemCheckboxState.Checked, fileTreeProvider);
+			togglePromises.push(
+				toggleSelection(
+					clickedResourceUri,
+					newState === vscode.TreeItemCheckboxState.Checked,
+					fileTreeProvider
+				)
+			);
 		}
+
+		await Promise.all(togglePromises);
+
 		fileTreeProvider.refresh();
-		void context.workspaceState.update(
+
+		await context.workspaceState.update(
 			STATE_KEY_SELECTED,
 			Array.from(fileTreeProvider.checkedPaths)
 		);
+
 		debouncedUpdate();
 	});
 
