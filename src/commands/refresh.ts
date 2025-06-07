@@ -3,13 +3,12 @@ import { FileTreeProvider } from "../FileTreeProvider";
 
 export function registerRefreshCommand(
     context: vscode.ExtensionContext,
-    fileTreeProvider: FileTreeProvider,
-    debouncedUpdate: () => void
+    _fileTreeProvider: FileTreeProvider,
+    debouncedRefreshAndUpdate: () => void
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand("contextCraft.refresh", () => {
-            fileTreeProvider.refresh();
-            debouncedUpdate();
+            debouncedRefreshAndUpdate();
         })
     );
 } 

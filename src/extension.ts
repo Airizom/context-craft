@@ -30,7 +30,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		return Array.from(new Set(files));
 	}
 
-	const debouncedUpdate = debounce(async () => {
+	const debouncedRefreshAndUpdate = debounce(async () => {
+		fileTreeProvider.refresh();
+		
 		const root = vscode.workspace.workspaceFolders?.[0]?.uri;
 		if (!root) { 
 			if (tokenStatusBar) {
@@ -58,7 +60,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	const persisted: string[] =
 		context.workspaceState.get<string[]>(STATE_KEY_SELECTED) ?? [];
-	fileTreeProvider = new FileTreeProvider(new Set(persisted), context, debouncedUpdate);
+	fileTreeProvider = new FileTreeProvider(new Set(persisted), context, debouncedRefreshAndUpdate);
 
 	treeView = vscode.window.createTreeView("contextCraftFileBrowser", {
 		treeDataProvider: fileTreeProvider,
@@ -75,9 +77,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	tokenStatusBar.show();
 	context.subscriptions.push(tokenStatusBar);
 
-	registerUnselectAllCommand(context, fileTreeProvider, debouncedUpdate);
+	registerUnselectAllCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
 	registerCopySelectedCommand(context, fileTreeProvider, resolveSelectedFiles);
-	registerRefreshCommand(context, fileTreeProvider, debouncedUpdate);
+	registerRefreshCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
 
 	treeView.onDidChangeCheckboxState(async (event) => {
 		const togglePromises: Promise<void>[] = [];
@@ -94,17 +96,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 		await Promise.all(togglePromises);
 
-		fileTreeProvider.refresh();
-
 		await context.workspaceState.update(
 			STATE_KEY_SELECTED,
 			Array.from(fileTreeProvider.checkedPaths)
 		);
 
-		debouncedUpdate();
+		debouncedRefreshAndUpdate();
 	});
 
-	debouncedUpdate();
+	debouncedRefreshAndUpdate();
 
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor(

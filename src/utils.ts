@@ -30,11 +30,35 @@ export async function collectFiles(
 	return ignoreParser.ignores(rel) ? [] : [uri.fsPath];
 }
 
-const isBinaryCache = new Map<string, boolean>();
+interface BinaryCacheEntry {
+	isBinary: boolean;
+	mtime: number;
+}
+
+const MAX_BINARY_CACHE_SIZE = 5000;
+const isBinaryCache = new Map<string, BinaryCacheEntry>();
+
+function evictOldestBinaryCacheEntries() {
+	if (isBinaryCache.size > MAX_BINARY_CACHE_SIZE) {
+		const entries = Array.from(isBinaryCache.entries());
+		const toDelete = entries.slice(0, isBinaryCache.size - MAX_BINARY_CACHE_SIZE);
+		for (const [key] of toDelete) {
+			isBinaryCache.delete(key);
+		}
+	}
+}
 
 export async function isBinary(absPath: string): Promise<boolean> {
-	if (isBinaryCache.has(absPath)) {
-		return isBinaryCache.get(absPath)!;
+	let stats: vscode.FileStat | undefined;
+	
+	try {
+		stats = await vscode.workspace.fs.stat(vscode.Uri.file(absPath));
+		const cached = isBinaryCache.get(absPath);
+		if (cached && cached.mtime === stats.mtime) {
+			return cached.isBinary;
+		}
+	} catch {
+		// If we can't stat the file, fall through to the binary check
 	}
 	
 	try {
@@ -43,17 +67,17 @@ export async function isBinary(absPath: string): Promise<boolean> {
 			const stream = await (vscode.workspace.fs as any).readFileStream(vscode.Uri.file(absPath));
 			const reader = stream.getReader();
 			let total = 0;
-			result = false; // Assume not binary until a null byte is found
+			result = false;
 			while (total < 512) {
 				const { value, done } = await reader.read();
 				if (done || !value) { break; }
 				for (let i = 0; i < value.length && total < 512; i++, total++) {
 					if (value[i] === 0) {
 						result = true;
-						break; // Found a null byte, it's binary
+						break;
 					}
 				}
-				if (result) { break; } // Exit outer loop if binary found
+				if (result) { break; }
 			}
 			reader.releaseLock();
 			stream.cancel();
@@ -61,10 +85,17 @@ export async function isBinary(absPath: string): Promise<boolean> {
 			const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(absPath));
 			result = bytes.subarray(0, 512).some(b => b === 0);
 		}
-		isBinaryCache.set(absPath, result);
+		
+		if (stats) {
+			isBinaryCache.set(absPath, { isBinary: result, mtime: stats.mtime });
+			evictOldestBinaryCacheEntries();
+		}
 		return result;
 	} catch {
-		isBinaryCache.set(absPath, true);
+		if (stats) {
+			isBinaryCache.set(absPath, { isBinary: true, mtime: stats.mtime });
+			evictOldestBinaryCacheEntries();
+		}
 		return true;
 	}
 }

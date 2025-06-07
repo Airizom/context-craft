@@ -6,11 +6,11 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	private readonly onDidChangeTreeDataEmitter = new vscode.EventEmitter<vscode.Uri | undefined>();
 	public readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 	public readonly kindCache = new Map<string, vscode.FileType>();
-	private readonly debouncedUpdate: () => void;
+	private readonly debouncedRefreshAndUpdate: () => void;
 
-	public constructor(initialChecked: Set<string>, context: vscode.ExtensionContext, debouncedUpdate: () => void) {
+	public constructor(initialChecked: Set<string>, context: vscode.ExtensionContext, debouncedRefreshAndUpdate: () => void) {
 		this.checkedPaths = initialChecked;
-		this.debouncedUpdate = debouncedUpdate;
+		this.debouncedRefreshAndUpdate = debouncedRefreshAndUpdate;
 		const watcher = vscode.workspace.createFileSystemWatcher(
 			"**/*",
 			false,
@@ -18,21 +18,21 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 			false
 		);
 		watcher.onDidCreate((uri) => {
+			if (this.shouldIgnoreWatcherEvent(uri)) { return; }
 			this.kindCache.delete(uri.fsPath);
 			this.kindCache.delete(path.dirname(uri.fsPath));
-			this.refresh();
-			this.debouncedUpdate();
+			this.debouncedRefreshAndUpdate();
 		});
 		watcher.onDidDelete((uri) => {
+			if (this.shouldIgnoreWatcherEvent(uri)) { return; }
 			this.kindCache.delete(uri.fsPath);
 			this.kindCache.delete(path.dirname(uri.fsPath));
-			this.refresh();
-			this.debouncedUpdate();
+			this.debouncedRefreshAndUpdate();
 		});
 		watcher.onDidChange((uri) => {
+			if (this.shouldIgnoreWatcherEvent(uri)) { return; }
 			this.kindCache.delete(uri.fsPath);
-			this.refresh();
-			this.debouncedUpdate();
+			this.debouncedRefreshAndUpdate();
 		});
 		context.subscriptions.push(watcher);
 	}
@@ -45,7 +45,7 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 				const entries = await vscode.workspace.fs.readDirectory(ws.uri);
 				for (const [name, type] of entries) {
 					const candidate = vscode.Uri.joinPath(ws.uri, name);
-					if (!(await this.isIgnored(candidate))) {
+					if (!this.isIgnored(candidate)) {
 						this.kindCache.set(candidate.fsPath, type);
 						childUris.push(candidate);
 					}
@@ -57,7 +57,7 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 		const visible: vscode.Uri[] = [];
 		for (const [name, type] of children) {
 			const candidate = vscode.Uri.joinPath(element, name);
-			if (!(await this.isIgnored(candidate))) {
+			if (!this.isIgnored(candidate)) {
 				this.kindCache.set(candidate.fsPath, type);
 				visible.push(candidate);
 			}
@@ -65,8 +65,14 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 		return this.sortUris(visible);
 	}
 
-	private async isIgnored(uri: vscode.Uri): Promise<boolean> {
+	private isIgnored(uri: vscode.Uri): boolean {
 		return false;
+	}
+
+	private shouldIgnoreWatcherEvent(uri: vscode.Uri): boolean {
+		const pathSegments = uri.fsPath.split(path.sep);
+		const ignoredDirs = new Set(['.git', 'node_modules', '.vscode', 'dist', 'build', 'out', 'target', '.next', '.nuxt']);
+		return pathSegments.some(segment => ignoredDirs.has(segment));
 	}
 
 	private sortUris(uris: vscode.Uri[]): vscode.Uri[] {

@@ -4,6 +4,7 @@ import * as path from "path";
 import { FileTreeProvider } from "../FileTreeProvider";
 import { isBinary } from "../utils";
 import { countTokens } from "../tokenCounter";
+import { MAX_PREVIEW_BYTES } from "../constants";
 
 export function registerCopySelectedCommand(
     context: vscode.ExtensionContext,
@@ -37,14 +38,9 @@ export function registerCopySelectedCommand(
                 const fileName = path.basename(rel);
                 const xmlPath = rel.split(path.sep).join("/");
 
-                if (await isBinary(abs)) {
-                    xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" binary="true"/>`);
-                    continue;
-                }
-
                 try {
                     const stats = await vscode.workspace.fs.stat(vscode.Uri.file(abs));
-                    if (stats.size > 200_000) {
+                    if (stats.size > MAX_PREVIEW_BYTES) {
                         xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" truncated="true"/>`);
                         continue;
                     }
@@ -54,9 +50,14 @@ export function registerCopySelectedCommand(
                     continue;
                 }
 
+                if (await isBinary(abs)) {
+                    xmlChunks.push(`  <file name="${fileName}" path="${xmlPath}" binary="true"/>`);
+                    continue;
+                }
+
                 const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
                 const original = Buffer.from(bytes).toString("utf-8");
-                const escaped = original.replaceAll("]]>", "]] ]]]><![CDATA[>");
+                const escaped = original.replaceAll("]]>", "]]]]><![CDATA[>");
                 xmlChunks.push(
                     `  <file name="${fileName}" path="${xmlPath}"><![CDATA[`,
                     escaped,

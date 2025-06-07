@@ -1,26 +1,98 @@
 import { encode } from "gpt-tokenizer/encoding/cl100k_base";
 import * as vscode from "vscode";
 import { isBinary } from "./utils";
+import { MAX_PREVIEW_BYTES } from "./constants";
 
-export async function countTokens(paths: string[]): Promise<number> {
-    let totalTokens = 0;
+interface TokenCacheEntry {
+    tokens: number;
+    mtime: number;
+    size: number;
+}
 
-    for (const absPath of paths) {
-        try {
-            const stats = await vscode.workspace.fs.stat(vscode.Uri.file(absPath));
-            if (stats.size > 200_000) {
-                continue;
+const MAX_CACHE_SIZE = 5000;
+const tokenCache = new Map<string, TokenCacheEntry>();
+
+function createLimit(concurrency: number) {
+    const queue: Array<() => void> = [];
+    let running = 0;
+
+    return function limit<T>(fn: () => Promise<T>): Promise<T> {
+        return new Promise((resolve, reject) => {
+            const run = async () => {
+                running++;
+                try {
+                    const result = await fn();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    running--;
+                    if (queue.length > 0 && running < concurrency) {
+                        const next = queue.shift()!;
+                        next();
+                    }
+                }
+            };
+
+            if (running < concurrency) {
+                run();
+            } else {
+                queue.push(run);
             }
-            if (await isBinary(absPath)) { 
-                continue; 
-            }
+        });
+    };
+}
 
-            const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(absPath));
-            const text = Buffer.from(bytes).toString("utf8");
-            totalTokens += encode(text).length;
-        } catch (error) {
-            console.error(`Error processing file ${absPath} for token count:`, error);
+const limit = createLimit(8);
+
+function evictOldestCacheEntries() {
+    if (tokenCache.size > MAX_CACHE_SIZE) {
+        const entries = Array.from(tokenCache.entries());
+        const toDelete = entries.slice(0, tokenCache.size - MAX_CACHE_SIZE);
+        for (const [key] of toDelete) {
+            tokenCache.delete(key);
         }
     }
-    return totalTokens;
+}
+
+export async function countTokens(paths: string[]): Promise<number> {
+    const tokenCounts = await Promise.all(
+        paths.map(absPath => limit(async () => {
+            try {
+                const uri = vscode.Uri.file(absPath);
+                const stats = await vscode.workspace.fs.stat(uri);
+                
+                if (stats.size > MAX_PREVIEW_BYTES) {
+                    return 0;
+                }
+
+                const cached = tokenCache.get(absPath);
+                if (cached && cached.mtime === stats.mtime && cached.size === stats.size) {
+                    return cached.tokens;
+                }
+
+                if (await isBinary(absPath)) {
+                    return 0;
+                }
+
+                const bytes = await vscode.workspace.fs.readFile(uri);
+                const text = Buffer.from(bytes).toString("utf8");
+                const tokens = encode(text).length;
+
+                tokenCache.set(absPath, {
+                    tokens,
+                    mtime: stats.mtime,
+                    size: stats.size
+                });
+                evictOldestCacheEntries();
+
+                return tokens;
+            } catch (error) {
+                console.error(`Error processing file ${absPath} for token count:`, error);
+                return 0;
+            }
+        }))
+    );
+
+    return tokenCounts.reduce((a, b) => a + b, 0);
 } 
