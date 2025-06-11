@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import { getIgnoreParser } from "./getIgnoreParser";
 
 export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	public readonly checkedPaths: Set<string>;
@@ -45,10 +46,10 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 				const entries = await vscode.workspace.fs.readDirectory(ws.uri);
 				for (const [name, type] of entries) {
 					const candidate = vscode.Uri.joinPath(ws.uri, name);
-					if (!this.isIgnored(candidate)) {
-						this.kindCache.set(candidate.fsPath, type);
-						childUris.push(candidate);
-					}
+                                       if (!(await this.isIgnored(candidate))) {
+                                               this.kindCache.set(candidate.fsPath, type);
+                                               childUris.push(candidate);
+                                       }
 				}
 			}
 			return this.sortUris(childUris);
@@ -57,17 +58,29 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 		const visible: vscode.Uri[] = [];
 		for (const [name, type] of children) {
 			const candidate = vscode.Uri.joinPath(element, name);
-			if (!this.isIgnored(candidate)) {
-				this.kindCache.set(candidate.fsPath, type);
-				visible.push(candidate);
-			}
+                       if (!(await this.isIgnored(candidate))) {
+                               this.kindCache.set(candidate.fsPath, type);
+                               visible.push(candidate);
+                       }
 		}
 		return this.sortUris(visible);
 	}
 
-	private isIgnored(uri: vscode.Uri): boolean {
-		return false;
-	}
+       private async isIgnored(uri: vscode.Uri): Promise<boolean> {
+               for (const ws of vscode.workspace.workspaceFolders ?? []) {
+                       if (uri.fsPath.startsWith(ws.uri.fsPath)) {
+                               const parser = await getIgnoreParser(ws.uri);
+                               const rel = path
+                                       .relative(ws.uri.fsPath, uri.fsPath)
+                                       .split(path.sep)
+                                       .join("/");
+                               if (parser.ignores(rel) || parser.ignores(rel + "/")) {
+                                       return true;
+                               }
+                       }
+               }
+               return false;
+       }
 
 	private shouldIgnoreWatcherEvent(uri: vscode.Uri): boolean {
 		const pathSegments = uri.fsPath.split(path.sep);
