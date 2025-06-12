@@ -19,13 +19,14 @@ export async function collectFiles(
 	const stat = await vscode.workspace.fs.stat(uri);
 	if (stat.type === vscode.FileType.Directory) {
 		if (ignoreParser.ignores(rel + "/")) { return []; }
-		const children = await vscode.workspace.fs.readDirectory(uri);
-		const nested: string[] = [];
-		for (const [name] of children) {
-			const childUri = vscode.Uri.joinPath(uri, name);
-			nested.push(...await collectFiles(childUri, ignoreParser, root));
-		}
-		return nested;
+                const children = await vscode.workspace.fs.readDirectory(uri);
+                const nestedArrays = await Promise.all(
+                        children.map(async ([name]) => {
+                                const childUri = vscode.Uri.joinPath(uri, name);
+                                return collectFiles(childUri, ignoreParser, root);
+                        })
+                );
+                return nestedArrays.flat();
 	}
 	return ignoreParser.ignores(rel) ? [] : [uri.fsPath];
 }
