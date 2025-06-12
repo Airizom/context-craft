@@ -130,21 +130,28 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	private computeCheckboxState(
 		element: vscode.Uri
 	): vscode.TreeItemCheckboxState {
+		// 1. Explicitly selected? -> Checked
 		if (this.checkedPaths.has(element.fsPath)) {
 			return vscode.TreeItemCheckboxState.Checked;
 		}
 
-		let parentPath: string = path.dirname(element.fsPath);
-		while (parentPath !== element.fsPath) {
-			if (this.checkedPaths.has(parentPath)) {
+		// 2. Selected path is an ancestor of this element? -> Checked
+		for (const sel of this.checkedPaths) {
+			const ancestorPrefix = sel + path.sep;
+			if (element.fsPath.startsWith(ancestorPrefix)) {
 				return vscode.TreeItemCheckboxState.Checked;
 			}
-			const next: string = path.dirname(parentPath);
-			if (next === parentPath) {
-				break;
-			}
-			parentPath = next;
 		}
+
+		// 3. Any descendant selected? -> Checked (folder containing selected items)
+		const prefix = element.fsPath + path.sep;
+		for (const sel of this.checkedPaths) {
+			if (sel.startsWith(prefix)) {
+				return vscode.TreeItemCheckboxState.Checked;
+			}
+		}
+
+		// 4. Otherwise -> Unchecked
 		return vscode.TreeItemCheckboxState.Unchecked;
 	}
 

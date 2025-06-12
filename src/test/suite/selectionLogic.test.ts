@@ -39,13 +39,53 @@ suite("toggleSelection()", () => {
 		assert.deepStrictEqual(Array.from(provider.checkedPaths), [folderA]);
 	});
 
-	test("unchecking a file inside a selected folder re-balances siblings", async () => {
+	test("checking a file inside a selected folder replaces folder selection with file selection", async () => {
 		provider.checkedPaths.add(folderA);
+		await toggleSelection(vscode.Uri.file(fileA1), true, provider as any);
+		assert.deepStrictEqual(Array.from(provider.checkedPaths), [fileA1]);
+	});
+});
 
+suite("toggleSelection edge cases", () => {
+	const root: string = path.join(__dirname, "fixtures2");
+	const folderA: string = path.join(root, "folderA");
+	const folderB: string = path.join(root, "folderB");
+	const fileA1: string = path.join(folderA, "fileA1.txt");
+	const fileA2: string = path.join(folderA, "fileA2.txt");
+
+	const dirMap: Record<string, string[]> = {
+		[root]: [folderA, folderB],
+		[folderA]: [fileA1, fileA2]
+	};
+
+	let provider: MockFileTreeProvider;
+
+	setup(() => {
+		provider = new MockFileTreeProvider(dirMap);
+	});
+
+	test("unchecking a folder clears all descendants", async () => {
+		provider.checkedPaths.add(folderA);
+		await toggleSelection(vscode.Uri.file(folderA), false, provider as any);
+		assert.deepStrictEqual(Array.from(provider.checkedPaths), []);
+	});
+
+	test("unchecking a single file leaves others intact", async () => {
+		provider.checkedPaths.add(fileA1);
+		provider.checkedPaths.add(fileA2);
 		await toggleSelection(vscode.Uri.file(fileA1), false, provider as any);
+		assert.deepStrictEqual(Array.from(provider.checkedPaths), [fileA2]);
+	});
 
-		assert.ok(!provider.checkedPaths.has(folderA), "parent folder should be deselected");
-		assert.ok(!provider.checkedPaths.has(fileA1), "fileA1 should be deselected");
-		assert.ok(provider.checkedPaths.has(fileA2), "fileA2 should have been re-selected to compensate");
+	test("selecting folder when file already selected replaces with folder", async () => {
+		provider.checkedPaths.add(fileA1);
+		await toggleSelection(vscode.Uri.file(folderA), true, provider as any);
+		assert.deepStrictEqual(Array.from(provider.checkedPaths), [folderA]);
+	});
+
+	test("selecting two unrelated folders keeps both", async () => {
+		await toggleSelection(vscode.Uri.file(folderA), true, provider as any);
+		await toggleSelection(vscode.Uri.file(folderB), true, provider as any);
+		assert.deepStrictEqual(new Set(provider.checkedPaths), new Set([folderA, folderB]));
 	});
 }); 
