@@ -45,11 +45,12 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 			for (const ws of roots) {
 				const entries = await vscode.workspace.fs.readDirectory(ws.uri);
 				for (const [name, type] of entries) {
+					if (name.startsWith('.')) { continue; }
 					const candidate = vscode.Uri.joinPath(ws.uri, name);
-                                       if (!(await this.isIgnored(candidate))) {
-                                               this.kindCache.set(candidate.fsPath, type);
-                                               childUris.push(candidate);
-                                       }
+					if (!(await this.isIgnored(candidate))) {
+						this.kindCache.set(candidate.fsPath, type);
+						childUris.push(candidate);
+					}
 				}
 			}
 			return this.sortUris(childUris);
@@ -57,30 +58,31 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 		const children = await vscode.workspace.fs.readDirectory(element);
 		const visible: vscode.Uri[] = [];
 		for (const [name, type] of children) {
+			if (name.startsWith('.')) { continue; }
 			const candidate = vscode.Uri.joinPath(element, name);
-                       if (!(await this.isIgnored(candidate))) {
-                               this.kindCache.set(candidate.fsPath, type);
-                               visible.push(candidate);
-                       }
+			if (!(await this.isIgnored(candidate))) {
+				this.kindCache.set(candidate.fsPath, type);
+				visible.push(candidate);
+			}
 		}
 		return this.sortUris(visible);
 	}
 
-       private async isIgnored(uri: vscode.Uri): Promise<boolean> {
-               for (const ws of vscode.workspace.workspaceFolders ?? []) {
-                       if (uri.fsPath.startsWith(ws.uri.fsPath)) {
-                               const parser = await getIgnoreParser(ws.uri);
-                               const rel = path
-                                       .relative(ws.uri.fsPath, uri.fsPath)
-                                       .split(path.sep)
-                                       .join("/");
-                               if (parser.ignores(rel) || parser.ignores(rel + "/")) {
-                                       return true;
-                               }
-                       }
-               }
-               return false;
-       }
+	private async isIgnored(uri: vscode.Uri): Promise<boolean> {
+		for (const ws of vscode.workspace.workspaceFolders ?? []) {
+			if (uri.fsPath.startsWith(ws.uri.fsPath)) {
+				const parser = await getIgnoreParser(ws.uri);
+				const rel = path
+						.relative(ws.uri.fsPath, uri.fsPath)
+						.split(path.sep)
+						.join("/");
+				if (parser.ignores(rel) || parser.ignores(rel + "/")) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
 	private shouldIgnoreWatcherEvent(uri: vscode.Uri): boolean {
 		const pathSegments = uri.fsPath.split(path.sep);

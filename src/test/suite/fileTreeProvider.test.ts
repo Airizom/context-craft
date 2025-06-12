@@ -38,7 +38,10 @@ suite("FileTreeProvider", () => {
                await fs.mkdir(path.join(root, "subdir"));
 
                const prev = vscode.workspace.workspaceFolders;
-               (vscode.workspace as any).workspaceFolders = [{ uri: vscode.Uri.file(root), name: "root", index: 0 }];
+               Object.defineProperty(vscode.workspace, "workspaceFolders", {
+                       get: () => [{ uri: vscode.Uri.file(root), name: "root", index: 0 }],
+                       configurable: true
+               });
 
                const provider = new FileTreeProvider(new Set(), { subscriptions: { push: () => {} } } as any, () => {});
                const isIgnored = (provider as any).isIgnored.bind(provider);
@@ -47,7 +50,10 @@ suite("FileTreeProvider", () => {
                assert.strictEqual(await isIgnored(vscode.Uri.file(path.join(root, "subdir"))), true, "dir should be ignored");
                assert.strictEqual(await isIgnored(vscode.Uri.file(path.join(root, "included.txt"))), false, "included file should not be ignored");
 
-               (vscode.workspace as any).workspaceFolders = prev;
+               Object.defineProperty(vscode.workspace, "workspaceFolders", {
+                       get: () => prev,
+                       configurable: true
+               });
                await fs.rm(root, { recursive: true, force: true });
        });
 
@@ -59,7 +65,10 @@ suite("FileTreeProvider", () => {
                await fs.mkdir(path.join(root, "subdir"));
 
                const prev = vscode.workspace.workspaceFolders;
-               (vscode.workspace as any).workspaceFolders = [{ uri: vscode.Uri.file(root), name: "root", index: 0 }];
+               Object.defineProperty(vscode.workspace, "workspaceFolders", {
+                       get: () => [{ uri: vscode.Uri.file(root), name: "root", index: 0 }],
+                       configurable: true
+               });
 
                const provider = new FileTreeProvider(new Set(), { subscriptions: { push: () => {} } } as any, () => {});
                const children = await provider.getChildren();
@@ -67,7 +76,10 @@ suite("FileTreeProvider", () => {
 
                assert.deepStrictEqual(names.sort(), ["included.txt"], "only non-ignored file should appear");
 
-               (vscode.workspace as any).workspaceFolders = prev;
+               Object.defineProperty(vscode.workspace, "workspaceFolders", {
+                       get: () => prev,
+                       configurable: true
+               });
                await fs.rm(root, { recursive: true, force: true });
        });
 });
