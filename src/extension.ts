@@ -119,8 +119,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                                 treeView.reveal(
                                         documentUri,
                                         {
-                                                select: false,
-                                                focus: false,
+                                                select: true,
+                                                focus: true,
                                                 expand: true
                                         }
                                 ).then(undefined, (error: unknown) => {
