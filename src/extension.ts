@@ -116,16 +116,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 					return;
 				}
 				const documentUri = activeTextEditor.document.uri;
-				treeView.reveal(
-					documentUri,
-					{
-						select: true,
-						focus: false,
-						expand: true
-					}
-				).then(undefined, (error: unknown) => {
-					console.error("Could not reveal in tree:", error);
-				});
+                                treeView.reveal(
+                                        documentUri,
+                                        {
+                                                select: false,
+                                                focus: false,
+                                                expand: true
+                                        }
+                                ).then(undefined, (error: unknown) => {
+                                        console.error("Could not reveal in tree:", error);
+                                });
 			}
 		)
 	);
