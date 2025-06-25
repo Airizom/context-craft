@@ -48,4 +48,29 @@ suite("toggleSelection()", () => {
 		assert.ok(!provider.checkedPaths.has(fileA1), "fileA1 should be deselected");
 		assert.ok(provider.checkedPaths.has(fileA2), "fileA2 should have been re-selected to compensate");
 	});
+
+	test("unchecking a deep descendant only deselects that leaf", async () => {
+		const root = "/tmp/root";
+		const folder = path.join(root, "folder");
+		const sub = path.join(folder, "sub");
+		const a = path.join(sub, "a.txt");
+		const b = path.join(sub, "b.txt");
+
+		const map: Record<string, string[]> = {
+			[root]:   [folder],
+			[folder]: [sub],
+			[sub]:    [a, b],
+		};
+		const provider = new MockFileTreeProvider(map);
+
+		provider.checkedPaths.add(folder);
+
+		await toggleSelection(vscode.Uri.file(a), false, provider as any);
+
+		assert.deepStrictEqual(
+			Array.from(provider.checkedPaths).sort(),
+			[b],
+			"deselecting leaf should keep its siblings selected"
+		);
+	});
 }); 

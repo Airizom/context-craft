@@ -53,9 +53,10 @@ async function reselectSiblingsExcept(
 			continue;
 		}
 		if (excludedPath.startsWith(childPath + path.sep)) {
-			continue;
+			await reselectSiblingsExcept(child, excludedPath, fileTreeProvider);
+		} else {
+			fileTreeProvider.checkedPaths.add(childPath);
 		}
-		fileTreeProvider.checkedPaths.add(childPath);
 	}
 }
 
