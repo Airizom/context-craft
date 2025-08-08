@@ -2,6 +2,37 @@ import * as vscode from "vscode";
 import * as path from "path";
 import ignore from "ignore";
 
+function createLimit(concurrency: number) {
+    const queue: Array<() => void> = [];
+    let running = 0;
+    return function limit<T>(fn: () => Promise<T>): Promise<T> {
+        return new Promise((resolve, reject) => {
+            const run = async () => {
+                running++;
+                try {
+                    const result = await fn();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    running--;
+                    if (queue.length > 0 && running < concurrency) {
+                        const next = queue.shift()!;
+                        next();
+                    }
+                }
+            };
+            if (running < concurrency) {
+                run();
+            } else {
+                queue.push(run);
+            }
+        });
+    };
+}
+
+const fsLimit = createLimit(24);
+
 export async function getParent(resourceUri: vscode.Uri): Promise<vscode.Uri | undefined> {
 	const parentPath: string = path.dirname(resourceUri.fsPath);
 	if (parentPath === resourceUri.fsPath) {
@@ -15,15 +46,15 @@ export async function collectFiles(
 	ignoreParser: ReturnType<typeof ignore>,
 	root: vscode.Uri
 ): Promise<string[]> {
-	const rel = path.relative(root.fsPath, uri.fsPath).split(path.sep).join("/");
-	const stat = await vscode.workspace.fs.stat(uri);
+    const rel = path.relative(root.fsPath, uri.fsPath).split(path.sep).join("/");
+    const stat = await fsLimit(async () => vscode.workspace.fs.stat(uri));
 	if (stat.type === vscode.FileType.Directory) {
 		if (ignoreParser.ignores(rel + "/")) { return []; }
-                const children = await vscode.workspace.fs.readDirectory(uri);
+                const children = await fsLimit(async () => vscode.workspace.fs.readDirectory(uri));
                 const nestedArrays = await Promise.all(
                         children.map(async ([name]) => {
                                 const childUri = vscode.Uri.joinPath(uri, name);
-                                return collectFiles(childUri, ignoreParser, root);
+                                return fsLimit(async () => collectFiles(childUri, ignoreParser, root));
                         })
                 );
                 return nestedArrays.flat();

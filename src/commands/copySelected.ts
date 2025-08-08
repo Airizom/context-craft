@@ -67,6 +67,12 @@ export function registerCopySelectedCommand(
             xmlChunks.push("</code_files>");
             const xmlPayload = xmlChunks.join(os.EOL);
             const tokenCount = await countTokens(absoluteFiles);
+            try {
+                const view = vscode.window.createTreeView("contextCraftFileBrowser", { treeDataProvider: fileTreeProvider, manageCheckboxStateManually: true });
+                view.message = `${absoluteFiles.length} file${absoluteFiles.length === 1 ? "" : "s"} | ${tokenCount.toLocaleString()} tokens`;
+            } catch {
+                // ignore if view already exists; extension's debounced updater will refresh soon
+            }
             await vscode.env.clipboard.writeText(xmlPayload);
             vscode.window.showInformationMessage(
                 `Copied ${absoluteFiles.length} file${absoluteFiles.length === 1 ? "" : "s"} ` +

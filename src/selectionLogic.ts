@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { FileTreeProvider } from "./FileTreeProvider";
-import { getParent } from "./utils";
 
 export async function toggleSelection(
 	target: vscode.Uri,
@@ -44,7 +43,7 @@ async function reselectSiblingsExcept(
 	excludedPath: string,
 	fileTreeProvider: FileTreeProvider
 ): Promise<void> {
-	const directChildren: vscode.Uri[] = await fileTreeProvider.getChildren(parent);
+    const directChildren: vscode.Uri[] = await fileTreeProvider.getChildren(parent);
 
 	for (const child of directChildren) {
 		const childPath: string = child.fsPath;
@@ -52,8 +51,8 @@ async function reselectSiblingsExcept(
 		if (childPath === excludedPath) {
 			continue;
 		}
-		if (excludedPath.startsWith(childPath + path.sep)) {
-			await reselectSiblingsExcept(child, excludedPath, fileTreeProvider);
+        if (excludedPath.startsWith(childPath + path.sep)) {
+            await reselectSiblingsExcept(child, excludedPath, fileTreeProvider);
 		} else {
 			fileTreeProvider.checkedPaths.add(childPath);
 		}
@@ -77,10 +76,10 @@ function findAllSelectedAncestors(descendant: vscode.Uri, fileTreeProvider: File
 }
 
 async function rebalanceParents(startLeaf: vscode.Uri, fileTreeProvider: FileTreeProvider): Promise<void> {
-	let cursor: vscode.Uri | undefined = await getParent(startLeaf);
+    let cursor = (await fileTreeProvider.getParent(startLeaf)) ?? undefined;
 
-	while (cursor !== undefined) {
-		const children: vscode.Uri[] = await fileTreeProvider.getChildren(cursor);
+    while (cursor !== undefined) {
+        const children: vscode.Uri[] = await fileTreeProvider.getChildren(cursor);
 
 		let checkedCount: number = 0;
 
@@ -100,6 +99,6 @@ async function rebalanceParents(startLeaf: vscode.Uri, fileTreeProvider: FileTre
 			fileTreeProvider.checkedPaths.delete(parentPath);
 		}
 
-		cursor = await getParent(cursor);
+        cursor = (await fileTreeProvider.getParent(cursor)) ?? undefined;
 	}
 } 
