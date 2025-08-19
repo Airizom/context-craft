@@ -42,24 +42,44 @@ export async function getParent(resourceUri: vscode.Uri): Promise<vscode.Uri | u
 }
 
 export async function collectFiles(
-	uri: vscode.Uri,
-	ignoreParser: ReturnType<typeof ignore>,
-	root: vscode.Uri
+    uri: vscode.Uri,
+    ignoreParser: ReturnType<typeof ignore>,
+    root: vscode.Uri,
+    signal?: AbortSignal,
+    maxFiles?: number,
+    counter?: { count: number }
 ): Promise<string[]> {
+    if (signal?.aborted) { return []; }
     const rel = path.relative(root.fsPath, uri.fsPath).split(path.sep).join("/");
     const stat = await fsLimit(async () => vscode.workspace.fs.stat(uri));
-	if (stat.type === vscode.FileType.Directory) {
-		if (ignoreParser.ignores(rel + "/")) { return []; }
-                const children = await fsLimit(async () => vscode.workspace.fs.readDirectory(uri));
-                const nestedArrays = await Promise.all(
-                        children.map(async ([name]) => {
-                                const childUri = vscode.Uri.joinPath(uri, name);
-                                return fsLimit(async () => collectFiles(childUri, ignoreParser, root));
-                        })
-                );
-                return nestedArrays.flat();
-	}
-	return ignoreParser.ignores(rel) ? [] : [uri.fsPath];
+    if (stat.type === vscode.FileType.Directory) {
+        if (ignoreParser.ignores(rel + "/")) { return []; }
+        if (signal?.aborted) { return []; }
+        const children = await fsLimit(async () => vscode.workspace.fs.readDirectory(uri));
+        const out: string[] = [];
+        for (const [name] of children) {
+            if (signal?.aborted) { break; }
+            if (maxFiles !== undefined && counter && counter.count >= maxFiles) {
+                // Soft stop when hitting cap; log once per traversal
+                if (counter.count === maxFiles) {
+                    console.warn(`[ContextCraft] collectFiles hit cap maxFiles=${maxFiles}; stopping traversal`);
+                }
+                break;
+            }
+            const childUri = vscode.Uri.joinPath(uri, name);
+            const nested = await fsLimit(async () => collectFiles(childUri, ignoreParser, root, signal, maxFiles, counter));
+            if (nested.length) {
+                out.push(...nested);
+            }
+        }
+        return out;
+    }
+    if (ignoreParser.ignores(rel)) { return []; }
+    if (maxFiles !== undefined && counter) {
+        if (counter.count >= maxFiles) { return []; }
+        counter.count++;
+    }
+    return [uri.fsPath];
 }
 
 interface BinaryCacheEntry {
@@ -131,5 +151,3 @@ export async function isBinary(absPath: string): Promise<boolean> {
 		return true;
 	}
 }
-
-
