@@ -6,6 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.3.0] - 2025-08-18
+
+- Performance: cache file children in file tree to speed browsing.
+- UI: improved status bar and tree view updates; more accurate token counts.
+- Docs: clearer installation and usage instructions.
+- Dev: VS Code settings tweak for default bash terminal on macOS.
+
+
 ## [1.2.1] - 2025-05-17
 
 - Update the icon and activity bar icon.
