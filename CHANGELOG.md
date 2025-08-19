@@ -6,6 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.3.1] - 2025-08-19
+
+- Fix: token/file counts now update reliably after selections, including large nested folders.
+- Performance: cancellable refresh with sequence gating to discard stale work.
+- Safety: cap traversal at 10,000 files to prevent out-of-memory crashes.
+- UX: interim "Calculating…" message in status bar and tree header during processing.
+- Logging: structured logs for selection changes, traversal, token counting, and ignore cache hits.
+
 ## [1.3.0] - 2025-08-18
 
 - Performance: cache file children in file tree to speed browsing.
