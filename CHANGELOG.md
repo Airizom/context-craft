@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.3.2] - 2025-08-21
+
+- Fix: avoid recreating the TreeView during copy to prevent the view from resetting while copying selected files.
+
 ## [1.3.1] - 2025-08-19
 
 - Fix: token/file counts now update reliably after selections, including large nested folders.
