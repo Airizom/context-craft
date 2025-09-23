@@ -150,7 +150,39 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		canSelectMany: true,
 		manageCheckboxStateManually: true
 	});
-    context.subscriptions.push(treeView);
+	context.subscriptions.push(treeView);
+
+	const focusActiveEditorInTree = (options?: { skipIfSelected?: boolean }) => {
+		const activeEditor = vscode.window.activeTextEditor;
+		if (!activeEditor) {
+			return;
+		}
+		const documentUri = activeEditor.document.uri;
+		if (documentUri.scheme !== "file") {
+			return;
+		}
+		if (!vscode.workspace.getWorkspaceFolder(documentUri)) {
+			return;
+		}
+		if (options?.skipIfSelected) {
+			const alreadySelected = treeView.selection.some(
+				(selectedUri) => selectedUri.fsPath === documentUri.fsPath
+			);
+			if (alreadySelected) {
+				return;
+			}
+		}
+		treeView.reveal(
+			documentUri,
+			{
+				select: true,
+				focus: true,
+				expand: true
+			}
+		).then(undefined, (error: unknown) => {
+			console.error("Could not reveal in tree:", error);
+		});
+	};
 
 	tokenStatusBar = vscode.window.createStatusBarItem(
 		vscode.StatusBarAlignment.Left,
@@ -191,32 +223,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				await refreshAndUpdate();
 			}
 		});
-        context.subscriptions.push(checkboxDisposable);
+	context.subscriptions.push(checkboxDisposable);
+
+	const visibilityDisposable = treeView.onDidChangeVisibility((event) => {
+		if (!event.visible) {
+			return;
+		}
+		focusActiveEditorInTree({ skipIfSelected: true });
+	});
+	context.subscriptions.push(visibilityDisposable);
+
+	if (treeView.visible) {
+		focusActiveEditorInTree({ skipIfSelected: true });
+	}
 
 	debouncedRefreshAndUpdate();
 
 	context.subscriptions.push(
-		vscode.window.onDidChangeActiveTextEditor(
-			(activeTextEditor) => {
-				if (activeTextEditor === undefined) {
-					return;
-				}
-				if (!treeView.visible) {
-					return;
-				}
-				const documentUri = activeTextEditor.document.uri;
-                                treeView.reveal(
-                                        documentUri,
-                                        {
-                                                select: true,
-                                                focus: true,
-                                                expand: true
-                                        }
-                                ).then(undefined, (error: unknown) => {
-                                        console.error("Could not reveal in tree:", error);
-                                });
+		vscode.window.onDidChangeActiveTextEditor(() => {
+			if (!treeView.visible) {
+				return;
 			}
-		)
+			focusActiveEditorInTree({ skipIfSelected: true });
+		})
 	);
 }
 
