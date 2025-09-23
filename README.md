@@ -1,5 +1,7 @@
 ## Context Craft
 
+[![CI](https://github.com/Airizom/context-craft/actions/workflows/publish-vscode-extension.yml/badge.svg)](https://github.com/Airizom/context-craft/actions/workflows/publish-vscode-extension.yml) [![Release](https://img.shields.io/github/v/release/Airizom/context-craft.svg?logo=github)](https://github.com/Airizom/context-craft/releases)
+
 Cherry‑pick files in VS Code and copy them to your clipboard as a clean XML payload—perfect for LLM prompts.
 
 ---
