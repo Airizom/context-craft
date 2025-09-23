@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.3.3] - 2025-09-22
+
+- Dev: stop tracking workspace-specific VS Code settings and recommendations.
+
 ## [1.3.2] - 2025-08-21
 
 - Fix: avoid recreating the TreeView during copy to prevent the view from resetting while copying selected files.
