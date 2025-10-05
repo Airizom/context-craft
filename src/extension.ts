@@ -247,6 +247,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			focusActiveEditorInTree({ skipIfSelected: true });
 		})
 	);
+
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeWorkspaceFolders(() => {
+			console.log("[ContextCraft] Workspace folders changed, refreshing tree");
+			debouncedRefreshAndUpdate();
+		})
+	);
 }
 
 export function deactivate(): void {

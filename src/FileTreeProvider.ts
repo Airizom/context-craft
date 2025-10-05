@@ -46,6 +46,11 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	public async getChildren(element?: vscode.Uri): Promise<vscode.Uri[]> {
 		if (!element) {
 			const roots = vscode.workspace.workspaceFolders ?? [];
+			// For multi-root workspaces, show workspace folders as top-level items
+			if (roots.length > 1) {
+				return roots.map(ws => ws.uri);
+			}
+			// For single-root, show the contents directly
 			const childUris: vscode.Uri[] = [];
 			for (const ws of roots) {
 				const entries = await vscode.workspace.fs.readDirectory(ws.uri);
