@@ -48,6 +48,10 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 			const roots = vscode.workspace.workspaceFolders ?? [];
 			// For multi-root workspaces, show workspace folders as top-level items
 			if (roots.length > 1) {
+				// Cache workspace folders as directories
+				for (const ws of roots) {
+					this.kindCache.set(ws.uri.fsPath, vscode.FileType.Directory);
+				}
 				return roots.map(ws => ws.uri);
 			}
 			// For single-root, show the contents directly
@@ -153,10 +157,22 @@ export class FileTreeProvider implements vscode.TreeDataProvider<vscode.Uri> {
 	}
 
 	public getParent(element: vscode.Uri): vscode.ProviderResult<vscode.Uri> {
+		const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+		// If element is a workspace root in multi-root mode, it has no parent
+		if (workspaceFolders.length > 1) {
+			for (const ws of workspaceFolders) {
+				if (element.fsPath === ws.uri.fsPath) {
+					return undefined;
+				}
+			}
+		}
 		const parentPath = path.dirname(element.fsPath);
-		for (const ws of vscode.workspace.workspaceFolders ?? []) {
+		// Check if parent is the workspace root
+		for (const ws of workspaceFolders) {
 			if (parentPath === ws.uri.fsPath) {
-				return undefined;
+				// In multi-root, return the workspace folder as parent
+				// In single-root, return undefined (no parent)
+				return workspaceFolders.length > 1 ? ws.uri : undefined;
 			}
 		}
 		return vscode.Uri.file(parentPath);
