@@ -3,6 +3,14 @@ import * as vscode from "vscode";
 import { registerCopySelectedCommand } from "./commands/copySelected";
 import { registerRefreshCommand } from "./commands/refresh";
 import { registerUnselectAllCommand } from "./commands/unselectAll";
+import { registerOpenFileCommand } from "./commands/openFile";
+import { registerOpenToSideCommand } from "./commands/openToSide";
+import { registerRevealInOSCommand } from "./commands/revealInOS";
+import { registerOpenInTerminalCommand } from "./commands/openInTerminal";
+import { registerCopyPathCommand } from "./commands/copyPath";
+import { registerCopyRelativePathCommand } from "./commands/copyRelativePath";
+import { registerRenameFileCommand } from "./commands/renameFile";
+import { registerDeleteFileCommand } from "./commands/deleteFile";
 import { STATE_KEY_SELECTED, MAX_COLLECTED_FILES } from "./constants";
 import { debounce } from "./debounce";
 import { FileTreeProvider } from "./FileTreeProvider";
@@ -196,6 +204,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerUnselectAllCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
 	registerCopySelectedCommand(context, fileTreeProvider, resolveSelectedFiles);
 	registerRefreshCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
+	registerOpenFileCommand(context);
+	registerOpenToSideCommand(context);
+	registerRevealInOSCommand(context);
+	registerOpenInTerminalCommand(context);
+	registerCopyPathCommand(context);
+	registerCopyRelativePathCommand(context);
+	registerRenameFileCommand(context);
+	registerDeleteFileCommand(context);
 
 		const checkboxDisposable = treeView.onDidChangeCheckboxState(async (event) => {
 			try {
