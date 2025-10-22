@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { registerCopySelectedCommand } from "./commands/copySelected";
 import { registerRefreshCommand } from "./commands/refresh";
 import { registerUnselectAllCommand } from "./commands/unselectAll";
+import { registerSelectGitChangesCommand } from "./commands/selectGitChanges";
 import { registerOpenFileCommand } from "./commands/openFile";
 import { registerOpenToSideCommand } from "./commands/openToSide";
 import { registerRevealInOSCommand } from "./commands/revealInOS";
@@ -202,6 +203,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(tokenStatusBar);
 
 	registerUnselectAllCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
+	registerSelectGitChangesCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
 	registerCopySelectedCommand(context, fileTreeProvider, resolveSelectedFiles);
 	registerRefreshCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
 	registerOpenFileCommand(context);

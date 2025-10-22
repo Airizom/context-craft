@@ -50,6 +50,11 @@
     },
     "commands": [
       {
+        "command": "contextCraft.selectGitChanges",
+        "title": "Select Git Changes",
+        "icon": "$(git-commit)"
+      },
+      {
         "command": "contextCraft.unselectAll",
         "title": "Unselect All",
         "icon": "$(circle-slash)"
@@ -141,6 +146,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "contextCraft.selectGitChanges",
+          "when": "view == contextCraftFileBrowser",
+          "group": "navigation"
+        },
         {
           "command": "contextCraft.unselectAll",
           "when": "view == contextCraftFileBrowser",
