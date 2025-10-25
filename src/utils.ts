@@ -50,11 +50,12 @@ export async function collectFiles(
     counter?: { count: number }
 ): Promise<string[]> {
     if (signal?.aborted) { return []; }
-    const rel = path.relative(root.fsPath, uri.fsPath).split(path.sep).join("/");
-    const stat = await fsLimit(async () => vscode.workspace.fs.stat(uri));
-    if (stat.type === vscode.FileType.Directory) {
-        if (ignoreParser.ignores(rel + "/")) { return []; }
-        if (signal?.aborted) { return []; }
+	const rel = path.relative(root.fsPath, uri.fsPath).split(path.sep).join("/");
+	const stat = await fsLimit(async () => vscode.workspace.fs.stat(uri));
+	if (stat.type === vscode.FileType.Directory) {
+		const relDir = rel === "" ? undefined : `${rel}/`;
+		if (relDir && ignoreParser.ignores(relDir)) { return []; }
+		if (signal?.aborted) { return []; }
         const children = await fsLimit(async () => vscode.workspace.fs.readDirectory(uri));
         const out: string[] = [];
         for (const [name] of children) {
@@ -74,7 +75,7 @@ export async function collectFiles(
         }
         return out;
     }
-    if (ignoreParser.ignores(rel)) { return []; }
+	if (rel !== "" && ignoreParser.ignores(rel)) { return []; }
     if (maxFiles !== undefined && counter) {
         if (counter.count >= maxFiles) { return []; }
         counter.count++;

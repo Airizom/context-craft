@@ -1,11 +1,23 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import { FileTreeProvider } from "../FileTreeProvider";
+import { STATE_KEY_SELECTED } from "../constants";
 
-export function registerRenameFileCommand(context: vscode.ExtensionContext): void {
+export function registerRenameFileCommand(
+	context: vscode.ExtensionContext,
+	fileTreeProvider: FileTreeProvider,
+	debouncedRefreshAndUpdate: () => void
+): void {
 	const disposable = vscode.commands.registerCommand(
 		"contextCraft.renameFile",
 		async (uri: vscode.Uri) => {
 			if (!uri) {
+				return;
+			}
+			if (isWorkspaceRoot(uri)) {
+				vscode.window.showWarningMessage(
+					"Renaming workspace roots is not supported. Update your workspace folders instead."
+				);
 				return;
 			}
 			const currentName = path.basename(uri.fsPath);
@@ -22,8 +34,68 @@ export function registerRenameFileCommand(context: vscode.ExtensionContext): voi
 			const newUri = vscode.Uri.file(path.join(path.dirname(uri.fsPath), newName));
 			const edit = new vscode.WorkspaceEdit();
 			edit.renameFile(uri, newUri);
-			await vscode.workspace.applyEdit(edit);
+			const applied = await vscode.workspace.applyEdit(edit);
+			if (!applied) {
+				vscode.window.showErrorMessage(`Could not rename '${currentName}'.`);
+				return;
+			}
+
+			const selectionChanged = updateSelectionsForRename(
+				fileTreeProvider,
+				uri.fsPath,
+				newUri.fsPath
+			);
+			if (selectionChanged) {
+				await context.workspaceState.update(
+					STATE_KEY_SELECTED,
+					Array.from(fileTreeProvider.checkedPaths)
+				);
+				debouncedRefreshAndUpdate();
+			}
 		}
 	);
 	context.subscriptions.push(disposable);
+}
+
+function updateSelectionsForRename(
+	fileTreeProvider: FileTreeProvider,
+	oldFsPath: string,
+	newFsPath: string
+): boolean {
+	const updatedPaths = new Set<string>();
+	let changed = false;
+	const oldPrefix = ensureTrailingSep(oldFsPath);
+	for (const checked of fileTreeProvider.checkedPaths) {
+		if (checked === oldFsPath) {
+			if (checked !== newFsPath) {
+				changed = true;
+			}
+			updatedPaths.add(newFsPath);
+			continue;
+		}
+		if (checked.startsWith(oldPrefix)) {
+			changed = true;
+			updatedPaths.add(newFsPath + checked.slice(oldFsPath.length));
+			continue;
+		}
+		updatedPaths.add(checked);
+	}
+	if (!changed) {
+		return false;
+	}
+	fileTreeProvider.checkedPaths.clear();
+	for (const entry of updatedPaths) {
+		fileTreeProvider.checkedPaths.add(entry);
+	}
+	return true;
+}
+
+function ensureTrailingSep(fsPath: string): string {
+	return fsPath.endsWith(path.sep) ? fsPath : `${fsPath}${path.sep}`;
+}
+
+function isWorkspaceRoot(uri: vscode.Uri): boolean {
+	return (vscode.workspace.workspaceFolders ?? []).some(
+		folder => folder.uri.fsPath === uri.fsPath
+	);
 }

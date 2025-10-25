@@ -1,8 +1,8 @@
 {
   "name": "context-craft",
-  "displayName": "Context Craft (Multi-Root Beta)",
+  "displayName": "Context Craft",
   "publisher": "airizom",
-  "description": "Cherry pick workspace files and copy them as XML payloads for LLM prompts. [BETA: Multi-root workspace support]",
+  "description": "Cherry pick workspace files and copy them as XML payloads for LLM prompts.",
   "repository": {
     "type": "git",
     "url": "https://github.com/Airizom/context-craft.git"
@@ -20,7 +20,7 @@
     "context",
     "gitignore"
   ],
-  "version": "1.3.4-beta.1",
+  "version": "1.3.4",
   "engines": {
     "vscode": "^1.96.2"
   },

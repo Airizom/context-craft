@@ -147,6 +147,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	const debouncedRefreshAndUpdate = debounce(refreshAndUpdate, 200);
 
+	const handleWorkspaceFoldersChanged = async () => {
+		console.log("[ContextCraft] Workspace folders changed, pruning selections and refreshing tree");
+		const selectionsPruned = pruneSelectionsOutsideWorkspace(fileTreeProvider);
+		if (selectionsPruned) {
+			await context.workspaceState.update(
+				STATE_KEY_SELECTED,
+				Array.from(fileTreeProvider.checkedPaths)
+			);
+		}
+		debouncedRefreshAndUpdate();
+	};
+
     
 
 	const persisted: string[] =
@@ -212,8 +224,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerOpenInTerminalCommand(context);
 	registerCopyPathCommand(context);
 	registerCopyRelativePathCommand(context);
-	registerRenameFileCommand(context);
-	registerDeleteFileCommand(context);
+	registerRenameFileCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
+	registerDeleteFileCommand(context, fileTreeProvider, debouncedRefreshAndUpdate);
 
 		const checkboxDisposable = treeView.onDidChangeCheckboxState(async (event) => {
 			try {
@@ -268,12 +280,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 	context.subscriptions.push(
 		vscode.workspace.onDidChangeWorkspaceFolders(() => {
-			console.log("[ContextCraft] Workspace folders changed, refreshing tree");
-			debouncedRefreshAndUpdate();
+			void handleWorkspaceFoldersChanged();
 		})
 	);
 }
 
 export function deactivate(): void {
 	// noop
+}
+
+function pruneSelectionsOutsideWorkspace(fileTreeProvider: FileTreeProvider): boolean {
+	const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+	if (workspaceFolders.length === 0) {
+		if (fileTreeProvider.checkedPaths.size === 0) {
+			return false;
+		}
+		fileTreeProvider.checkedPaths.clear();
+		return true;
+	}
+	let changed = false;
+	for (const fsPath of Array.from(fileTreeProvider.checkedPaths)) {
+		const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(fsPath));
+		if (!folder) {
+			fileTreeProvider.checkedPaths.delete(fsPath);
+			changed = true;
+		}
+	}
+	return changed;
 }
