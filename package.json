@@ -1,8 +1,8 @@
 {
   "name": "context-craft",
-  "displayName": "Context Craft",
+  "displayName": "Context Craft (Multi-Root Beta)",
   "publisher": "airizom",
-  "description": "Cherry pick workspace files and copy them as XML payloads for LLM prompts.",
+  "description": "Cherry pick workspace files and copy them as XML payloads for LLM prompts. [BETA: Multi-root workspace support]",
   "repository": {
     "type": "git",
     "url": "https://github.com/Airizom/context-craft.git"
@@ -20,7 +20,7 @@
     "context",
     "gitignore"
   ],
-  "version": "1.3.3",
+  "version": "1.3.4-beta.1",
   "engines": {
     "vscode": "^1.96.2"
   },
@@ -50,6 +50,11 @@
     },
     "commands": [
       {
+        "command": "contextCraft.selectGitChanges",
+        "title": "Select Git Changes",
+        "icon": "$(git-commit)"
+      },
+      {
         "command": "contextCraft.unselectAll",
         "title": "Unselect All",
         "icon": "$(circle-slash)"
@@ -63,11 +68,89 @@
         "command": "contextCraft.refresh",
         "title": "Refresh",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "contextCraft.openFile",
+        "title": "Open"
+      },
+      {
+        "command": "contextCraft.openToSide",
+        "title": "Open to the Side"
+      },
+      {
+        "command": "contextCraft.revealInOS",
+        "title": "Reveal in File Explorer"
+      },
+      {
+        "command": "contextCraft.openInTerminal",
+        "title": "Open in Integrated Terminal"
+      },
+      {
+        "command": "contextCraft.copyPath",
+        "title": "Copy Path"
+      },
+      {
+        "command": "contextCraft.copyRelativePath",
+        "title": "Copy Relative Path"
+      },
+      {
+        "command": "contextCraft.renameFile",
+        "title": "Rename"
+      },
+      {
+        "command": "contextCraft.deleteFile",
+        "title": "Delete"
       }
     ],
     "menus": {
-      "view/item/context": [],
+      "view/item/context": [
+        {
+          "command": "contextCraft.openFile",
+          "when": "viewItem == file && view == contextCraftFileBrowser",
+          "group": "navigation@1"
+        },
+        {
+          "command": "contextCraft.openToSide",
+          "when": "viewItem == file && view == contextCraftFileBrowser",
+          "group": "navigation@2"
+        },
+        {
+          "command": "contextCraft.revealInOS",
+          "when": "view == contextCraftFileBrowser",
+          "group": "2_workspace@1"
+        },
+        {
+          "command": "contextCraft.openInTerminal",
+          "when": "viewItem == folder && view == contextCraftFileBrowser",
+          "group": "2_workspace@2"
+        },
+        {
+          "command": "contextCraft.copyPath",
+          "when": "view == contextCraftFileBrowser",
+          "group": "5_cutcopypaste@1"
+        },
+        {
+          "command": "contextCraft.copyRelativePath",
+          "when": "view == contextCraftFileBrowser",
+          "group": "5_cutcopypaste@2"
+        },
+        {
+          "command": "contextCraft.renameFile",
+          "when": "view == contextCraftFileBrowser",
+          "group": "7_modification@1"
+        },
+        {
+          "command": "contextCraft.deleteFile",
+          "when": "view == contextCraftFileBrowser",
+          "group": "7_modification@2"
+        }
+      ],
       "view/title": [
+        {
+          "command": "contextCraft.selectGitChanges",
+          "when": "view == contextCraftFileBrowser",
+          "group": "navigation"
+        },
         {
           "command": "contextCraft.unselectAll",
           "when": "view == contextCraftFileBrowser",
@@ -118,8 +201,5 @@
     "untrustedWorkspaces": {
       "supported": false
     }
-  },
-  "extensionDependencies": [
-    "vscode.git"
-  ]
+  }
 }

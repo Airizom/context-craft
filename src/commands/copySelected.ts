@@ -11,7 +11,7 @@ export function registerCopySelectedCommand(
   fileTreeProvider: FileTreeProvider,
   resolveSelectedFiles: (
     fileTree: FileTreeProvider,
-    root: vscode.Uri
+    root?: vscode.Uri
   ) => Promise<string[]>
 ): void {
   context.subscriptions.push(
@@ -23,61 +23,90 @@ export function registerCopySelectedCommand(
         );
         return;
       }
-      if (workspaceFolders.length > 1) {
-        vscode.window.showWarningMessage(
-          "Multi-root workspaces are not fully supported. Only the first root will be used."
-        );
-      }
-      const workspaceRootUri = workspaceFolders[0].uri;
       const absoluteFiles = (
-        await resolveSelectedFiles(fileTreeProvider, workspaceRootUri)
+        await resolveSelectedFiles(fileTreeProvider)
       ).sort();
 
       if (absoluteFiles.length === 0) {
         vscode.window.showInformationMessage("No non-ignored files resolved.");
         return;
       }
-      let xmlChunks: string[] = ["<code_files>"];
-      for (const abs of absoluteFiles) {
-        const rel = path.relative(workspaceRootUri.fsPath, abs);
-        const fileName = path.basename(rel);
-        const xmlPath = rel.split(path.sep).join("/");
 
-        try {
-          const stats = await vscode.workspace.fs.stat(vscode.Uri.file(abs));
-          if (stats.size > MAX_PREVIEW_BYTES) {
+      const isMultiRoot = workspaceFolders.length > 1;
+
+      // Group files by workspace folder if multi-root
+      const filesByWorkspace = new Map<string, string[]>();
+      for (const abs of absoluteFiles) {
+        const fileUri = vscode.Uri.file(abs);
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(fileUri);
+        const workspaceKey = workspaceFolder?.uri.fsPath ?? workspaceFolders[0].uri.fsPath;
+        if (!filesByWorkspace.has(workspaceKey)) {
+          filesByWorkspace.set(workspaceKey, []);
+        }
+        filesByWorkspace.get(workspaceKey)!.push(abs);
+      }
+
+      let xmlChunks: string[] = ["<code_files>"];
+
+      for (const [workspaceKey, files] of filesByWorkspace) {
+        const workspaceFolder = workspaceFolders.find(ws => ws.uri.fsPath === workspaceKey);
+        const workspaceName = workspaceFolder?.name ?? path.basename(workspaceKey);
+
+        // Add workspace grouping only for multi-root
+        if (isMultiRoot) {
+          xmlChunks.push(`  <workspace name="${workspaceName}" path="${workspaceKey}">`);
+        }
+
+        for (const abs of files) {
+          const fileUri = vscode.Uri.file(abs);
+          const workspaceRootUri = workspaceFolder?.uri ?? workspaceFolders[0].uri;
+          const rel = path.relative(workspaceRootUri.fsPath, abs);
+          const fileName = path.basename(rel);
+          const xmlPath = rel.split(path.sep).join("/");
+          const indent = isMultiRoot ? "    " : "  ";
+
+          try {
+            const stats = await vscode.workspace.fs.stat(vscode.Uri.file(abs));
+            if (stats.size > MAX_PREVIEW_BYTES) {
+              xmlChunks.push(
+                `${indent}<file name="${fileName}" path="${xmlPath}" truncated="true"/>`
+              );
+              continue;
+            }
+          } catch (statError) {
+            console.error(
+              `Error stating file ${abs} for XML generation:`,
+              statError
+            );
             xmlChunks.push(
-              `  <file name="${fileName}" path="${xmlPath}" truncated="true"/>`
+              `${indent}<file name="${fileName}" path="${xmlPath}" error="true" comment="Error checking file size"/>`
             );
             continue;
           }
-        } catch (statError) {
-          console.error(
-            `Error stating file ${abs} for XML generation:`,
-            statError
-          );
+
+          if (await isBinary(abs)) {
+            xmlChunks.push(
+              `${indent}<file name="${fileName}" path="${xmlPath}" binary="true"/>`
+            );
+            continue;
+          }
+
+          const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
+          const original = Buffer.from(bytes).toString("utf-8");
+          const escaped = original.replaceAll("]]>", "]]]]><![CDATA[>");
           xmlChunks.push(
-            `  <file name="${fileName}" path="${xmlPath}" error="true" comment="Error checking file size"/>`
+            `${indent}<file name="${fileName}" path="${xmlPath}"><![CDATA[`,
+            escaped,
+            `]]></file>`
           );
-          continue;
         }
 
-        if (await isBinary(abs)) {
-          xmlChunks.push(
-            `  <file name="${fileName}" path="${xmlPath}" binary="true"/>`
-          );
-          continue;
+        // Close workspace tag only for multi-root
+        if (isMultiRoot) {
+          xmlChunks.push(`  </workspace>`);
         }
-
-        const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(abs));
-        const original = Buffer.from(bytes).toString("utf-8");
-        const escaped = original.replaceAll("]]>", "]]]]><![CDATA[>");
-        xmlChunks.push(
-          `  <file name="${fileName}" path="${xmlPath}"><![CDATA[`,
-          escaped,
-          `]]></file>`
-        );
       }
+
       xmlChunks.push("</code_files>");
       const xmlPayload = xmlChunks.join(os.EOL);
       const tokenCount = await countTokens(absoluteFiles);
