@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.3.4] - 2025-10-25
+
+- Feature: full multi-root workspace support so every folder in a workspace gets its own Context Craft tree and command context.
+- Fix: tightened selection syncing and workspace safeguards—block rename/delete on workspace roots, skip deleted or out-of-scope git changes, and prune stale selections when folders change.
+- Docs: README now highlights CI/release status badges to clarify project health.
+
 ## [1.3.3] - 2025-09-22
 
 - Dev: stop tracking workspace-specific VS Code settings and recommendations.
