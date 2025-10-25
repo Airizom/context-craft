@@ -3,7 +3,8 @@ import * as sinon from "sinon";
 import { debounce } from "../../debounce";
 
 suite("debounce()", () => {
-	test("executes exactly once after the specified delay", () => {
+	test("executes exactly once after the specified delay", function () {
+		this.timeout(1000);
 		const clock: sinon.SinonFakeTimers = sinon.useFakeTimers();
 		try {
 			let invocationCount: number = 0;

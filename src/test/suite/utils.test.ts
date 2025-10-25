@@ -1,23 +1,41 @@
 import * as assert from "assert";
-import * as vscode from "vscode";
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs/promises";
+import proxyquire = require("proxyquire");
+import type * as vscode from "vscode";
 import ignore from "ignore";
-import { collectFiles, isBinary } from "../../utils";
+import { createMockUri, createVsCodeMock } from "../mocks";
+
+const proxyquireNoCallThru = proxyquire.noCallThru();
+const vscodeMock = createVsCodeMock();
+const { collectFiles, isBinary } = proxyquireNoCallThru("../../utils", {
+	vscode: vscodeMock
+}) as typeof import("../../utils");
 
 suite("utils helpers", () => {
 	let tempRoot: string;
+	const toUri = (target: string): vscode.Uri => createMockUri(target);
+
+	suiteSetup(async () => {
+		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "context-craft-"));
+	});
+
+	suiteTeardown(async () => {
+		await fs.rm(tempRoot, { recursive: true, force: true });
+	});
 
 	setup(async () => {
-		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "context-craft-"));
+		await fs.rm(tempRoot, { recursive: true, force: true });
+		await fs.mkdir(tempRoot, { recursive: true });
 	});
 
 	teardown(async () => {
 		await fs.rm(tempRoot, { recursive: true, force: true });
 	});
 
-	test("collectFiles() respects ignore rules", async () => {
+	test("collectFiles() respects ignore rules", async function () {
+		this.timeout(3000);
 		const subDir: string = path.join(tempRoot, "subdir");
 		await fs.mkdir(subDir);
 		
@@ -29,15 +47,16 @@ suite("utils helpers", () => {
 
 		const ignoreParser = ignore().add("ignored.txt");
 		const collected: string[] = await collectFiles(
-			vscode.Uri.file(subDir),
+			toUri(subDir),
 			ignoreParser,
-			vscode.Uri.file(tempRoot)
+			toUri(tempRoot)
 		);
 
 		assert.deepStrictEqual(collected, [included]);
 	});
 
-	test("isBinary() detects NUL bytes", async () => {
+	test("isBinary() detects NUL bytes", async function () {
+		this.timeout(3000);
 		const textFile: string   = path.join(tempRoot, "plain.txt");
 		const binaryFile: string = path.join(tempRoot, "binary.bin");
 
@@ -48,22 +67,42 @@ suite("utils helpers", () => {
 		assert.strictEqual(await isBinary(binaryFile), true,  "binary file mis-classified");
 	});
 
-	test("collectFiles() handles deep directory nesting with ignore rules", async () => {
+	test("collectFiles() handles deep directory nesting with ignore rules", async function () {
+		this.timeout(3000);
 		const nestedDir = path.join(tempRoot, "nested", "a", "b");
 		await fs.mkdir(nestedDir, { recursive: true });
 		
 		const deepFile = path.join(nestedDir, "c.txt");
-		const allowedFile = path.join(tempRoot, "allowed.txt");
 		await fs.writeFile(deepFile, "deep content");
-		await fs.writeFile(allowedFile, "allowed content");
 
 		const ignoreParser = ignore().add("nested/");
 		const collected: string[] = await collectFiles(
-			vscode.Uri.file(nestedDir),
+			toUri(nestedDir),
 			ignoreParser,
-			vscode.Uri.file(tempRoot)
+			toUri(tempRoot)
 		);
 
 		assert.deepStrictEqual(collected, [], "nested directory should be ignored");
 	});
-}); 
+
+	test("collectFiles() traverses directories deeper than the fsLimit concurrency", async function () {
+		this.timeout(3000);
+		let currentDir = tempRoot;
+		const depth = 30;
+		for (let i = 0; i < depth; i++) {
+			currentDir = path.join(currentDir, `level-${i}`);
+			await fs.mkdir(currentDir);
+		}
+
+		const deepFile = path.join(currentDir, "deep.txt");
+		await fs.writeFile(deepFile, "deep content");
+
+		const collected: string[] = await collectFiles(
+			toUri(tempRoot),
+			ignore(),
+			toUri(tempRoot)
+		);
+
+		assert.ok(collected.includes(deepFile), "deeply nested file should be collected");
+	});
+});

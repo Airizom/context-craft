@@ -68,7 +68,8 @@ export async function collectFiles(
                 break;
             }
             const childUri = vscode.Uri.joinPath(uri, name);
-            const nested = await fsLimit(async () => collectFiles(childUri, ignoreParser, root, signal, maxFiles, counter));
+            // Recurse directly; wrapping recursion in fsLimit can deadlock once depth exceeds the concurrency cap.
+            const nested = await collectFiles(childUri, ignoreParser, root, signal, maxFiles, counter);
             if (nested.length) {
                 out.push(...nested);
             }

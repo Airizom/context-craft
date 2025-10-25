@@ -1,18 +1,17 @@
 import * as assert from "assert";
 import * as path from "path";
-import * as vscode from "vscode";
-import { toggleSelection } from "../../selectionLogic";
+import proxyquire = require("proxyquire");
+import type * as vscode from "vscode";
+import { createMockUri, createVsCodeMock, MockFileTreeProvider } from "../mocks";
 
-class MockFileTreeProvider {
-	public readonly checkedPaths: Set<string> = new Set<string>();
+const proxyquireNoCallThru = proxyquire.noCallThru();
+const vscodeMock = createVsCodeMock();
+const { toggleSelection } = proxyquireNoCallThru("../../selectionLogic", {
+	vscode: vscodeMock,
+	"../../FileTreeProvider": { FileTreeProvider: class {} }
+}) as typeof import("../../selectionLogic");
 
-	public constructor(private readonly directoryMap: Record<string, string[]>) { }
-
-	public async getChildren(parent: vscode.Uri): Promise<vscode.Uri[]> {
-		const children: string[] = this.directoryMap[parent.fsPath] ?? [];
-		return children.map((childPath) => vscode.Uri.file(childPath));
-	}
-}
+const toUri = (fsPath: string): vscode.Uri => createMockUri(fsPath);
 
 suite("toggleSelection()", () => {
 	const root: string = path.join(__dirname, "fixtures");
@@ -34,22 +33,25 @@ suite("toggleSelection()", () => {
 		provider = new MockFileTreeProvider(directoryMap);
 	});
 
-	test("checking a folder selects only that folder, not its children", async () => {
-		await toggleSelection(vscode.Uri.file(folderA), true, provider as any);
+	test("checking a folder selects only that folder, not its children", async function () {
+		this.timeout(1000);
+		await toggleSelection(toUri(folderA), true, provider as any);
 		assert.deepStrictEqual(Array.from(provider.checkedPaths), [folderA]);
 	});
 
-	test("unchecking a file inside a selected folder re-balances siblings", async () => {
+	test("unchecking a file inside a selected folder re-balances siblings", async function () {
+		this.timeout(1000);
 		provider.checkedPaths.add(folderA);
 
-		await toggleSelection(vscode.Uri.file(fileA1), false, provider as any);
+		await toggleSelection(toUri(fileA1), false, provider as any);
 
 		assert.ok(!provider.checkedPaths.has(folderA), "parent folder should be deselected");
 		assert.ok(!provider.checkedPaths.has(fileA1), "fileA1 should be deselected");
 		assert.ok(provider.checkedPaths.has(fileA2), "fileA2 should have been re-selected to compensate");
 	});
 
-	test("unchecking a deep descendant only deselects that leaf", async () => {
+	test("unchecking a deep descendant only deselects that leaf", async function () {
+		this.timeout(1000);
 		const root = "/tmp/root";
 		const folder = path.join(root, "folder");
 		const sub = path.join(folder, "sub");
@@ -65,7 +67,7 @@ suite("toggleSelection()", () => {
 
 		provider.checkedPaths.add(folder);
 
-		await toggleSelection(vscode.Uri.file(a), false, provider as any);
+		await toggleSelection(toUri(a), false, provider as any);
 
 		assert.deepStrictEqual(
 			Array.from(provider.checkedPaths).sort(),
