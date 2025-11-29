@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-11-29
+
+- Feature: added **Select Open Editors** to replace the selection with every open text editor in the workspace, with clear feedback for skipped non-workspace files.
+- Refactor: centralized selection persistence and file path helpers so rename/delete/git-selection flows share the same workspace-safe logic.
+- Performance: token counting now uses a shared concurrency limiter and bounded cache eviction to cut redundant file reads during large selections.
+- Dev: split the test harness into explicit unit vs. integration runners and refreshed docs to match.
+
 ## [1.3.4] - 2025-10-25
 
 - Feature: full multi-root workspace support so every folder in a workspace gets its own Context Craft tree and command context.

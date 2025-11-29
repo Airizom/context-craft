@@ -1,7 +1,7 @@
 # Context Craft
 
 ![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.96.2-blue?logo=visualstudiocode&logoColor=white)
-![Version](https://img.shields.io/badge/version-1.3.4-6b5b95)
+![Version](https://img.shields.io/badge/version-1.4.0-6b5b95)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
 Curate exactly the files you want to share with an LLM. Context Craft adds a dedicated tree view to VS Code so you can cherry-pick files, count their approximate tokens, and copy the selection as an XML payload that pastes cleanly into any prompt window.
@@ -28,6 +28,7 @@ Curate exactly the files you want to share with an LLM. Context Craft adds a ded
 
 - **Multi-root ready** – each workspace folder renders as its own root with shared commands, and selections persist per workspace via VS Code workspace state.
 - **Git-aware selection** – one click selects every uncommitted change detected by the built-in Git extension, skipping deleted or out-of-scope files automatically.
+- **Open-editors shortcut** – instantly select every open text editor inside the workspace, skipping anything outside your folders with a clear toast.
 - **LLM-friendly payloads** – copies selected files into a `<code_files>` XML document, grouping multi-root workspaces into `<workspace>` tags and wrapping contents in `CDATA` blocks.
 - **Token estimates at a glance** – a status bar item and tree header show `N files | M tokens`, powered by the `cl100k_base` tokenizer used by GPT-4o/GPT-4 Turbo.
 - **Ignore + safety rails** – respects `.gitignore`, skips binaries, truncates files over 200 KB, and caps traversal at 10,000 files to prevent runaway memory usage.
@@ -57,6 +58,7 @@ Curate exactly the files you want to share with an LLM. Context Craft adds a ded
 | Command | Description |
 | --- | --- |
 | `Context Craft: Select Git Changes` (`contextCraft.selectGitChanges`) | Pulls every staged/unstaged/merge change from all Git repositories in the workspace and replaces the current selection with those files.
+| `Context Craft: Select Open Editors` (`contextCraft.selectOpenEditors`) | Selects every currently open text editor inside your workspace, skipping files outside the workspace and telling you how many were skipped.
 | `Context Craft: Unselect All` (`contextCraft.unselectAll`) | Clears every checkbox and persisted selection entry.
 | `Context Craft: Copy Selected` (`contextCraft.copySelected`) | Resolves the current selection (respecting `.gitignore`, binary checks, and caps) and copies it to the clipboard as XML, including the token count notification.
 | `Context Craft: Refresh` (`contextCraft.refresh`) | Forces the tree to re-query the file system; handy after large refactors or when ignoring files.
