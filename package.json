@@ -55,6 +55,11 @@
         "icon": "$(git-commit)"
       },
       {
+        "command": "contextCraft.selectOpenEditors",
+        "title": "Select Open Editors",
+        "icon": "$(files)"
+      },
+      {
         "command": "contextCraft.unselectAll",
         "title": "Unselect All",
         "icon": "$(circle-slash)"
@@ -148,6 +153,11 @@
       "view/title": [
         {
           "command": "contextCraft.selectGitChanges",
+          "when": "view == contextCraftFileBrowser",
+          "group": "navigation"
+        },
+        {
+          "command": "contextCraft.selectOpenEditors",
           "when": "view == contextCraftFileBrowser",
           "group": "navigation"
         },
