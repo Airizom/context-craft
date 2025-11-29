@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import ignore from "ignore";
 
-function createLimit(concurrency: number) {
+export function createLimit(concurrency: number) {
     const queue: Array<() => void> = [];
     let running = 0;
     return function limit<T>(fn: () => Promise<T>): Promise<T> {
@@ -92,14 +92,18 @@ interface BinaryCacheEntry {
 const MAX_BINARY_CACHE_SIZE = 5000;
 const isBinaryCache = new Map<string, BinaryCacheEntry>();
 
-function evictOldestBinaryCacheEntries() {
-	if (isBinaryCache.size > MAX_BINARY_CACHE_SIZE) {
-		const entries = Array.from(isBinaryCache.entries());
-		const toDelete = entries.slice(0, isBinaryCache.size - MAX_BINARY_CACHE_SIZE);
+export function evictOldestCacheEntries<T>(cache: Map<string, T>, maxSize: number): void {
+	if (cache.size > maxSize) {
+		const entries = Array.from(cache.entries());
+		const toDelete = entries.slice(0, cache.size - maxSize);
 		for (const [key] of toDelete) {
-			isBinaryCache.delete(key);
+			cache.delete(key);
 		}
 	}
+}
+
+function evictOldestBinaryCacheEntries() {
+	evictOldestCacheEntries(isBinaryCache, MAX_BINARY_CACHE_SIZE);
 }
 
 export async function isBinary(absPath: string): Promise<boolean> {

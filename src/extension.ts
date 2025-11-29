@@ -12,6 +12,7 @@ import { registerCopyPathCommand } from "./commands/copyPath";
 import { registerCopyRelativePathCommand } from "./commands/copyRelativePath";
 import { registerRenameFileCommand } from "./commands/renameFile";
 import { registerDeleteFileCommand } from "./commands/deleteFile";
+import { updateSelectedPaths } from "./commands/commandUtils";
 import { STATE_KEY_SELECTED, MAX_COLLECTED_FILES } from "./constants";
 import { debounce } from "./debounce";
 import { FileTreeProvider } from "./FileTreeProvider";
@@ -243,10 +244,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				await Promise.all(togglePromises);
 				console.log(`[ContextCraft] checkbox toggled; checkedPaths.size=${fileTreeProvider.checkedPaths.size}`);
 				// Persist selection state, but do not block UI updates
-				void context.workspaceState.update(
-					STATE_KEY_SELECTED,
-					Array.from(fileTreeProvider.checkedPaths)
-				).then(undefined, (err: unknown) => console.error("[ContextCraft] workspaceState update failed", err));
+				void updateSelectedPaths(context, fileTreeProvider).then(undefined, (err: unknown) => console.error("[ContextCraft] workspaceState update failed", err));
 			} catch (error) {
 				console.error("[ContextCraft] Checkbox handler failed:", error);
 			} finally {

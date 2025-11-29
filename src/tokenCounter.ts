@@ -1,6 +1,6 @@
 import { encode } from "gpt-tokenizer/encoding/cl100k_base";
 import * as vscode from "vscode";
-import { isBinary } from "./utils";
+import { isBinary, createLimit, evictOldestCacheEntries } from "./utils";
 import { MAX_PREVIEW_BYTES } from "./constants";
 
 interface TokenCacheEntry {
@@ -12,48 +12,7 @@ interface TokenCacheEntry {
 const MAX_CACHE_SIZE = 5000;
 const tokenCache = new Map<string, TokenCacheEntry>();
 
-function createLimit(concurrency: number) {
-    const queue: Array<() => void> = [];
-    let running = 0;
-
-    return function limit<T>(fn: () => Promise<T>): Promise<T> {
-        return new Promise((resolve, reject) => {
-            const run = async () => {
-                running++;
-                try {
-                    const result = await fn();
-                    resolve(result);
-                } catch (error) {
-                    reject(error);
-                } finally {
-                    running--;
-                    if (queue.length > 0 && running < concurrency) {
-                        const next = queue.shift()!;
-                        next();
-                    }
-                }
-            };
-
-            if (running < concurrency) {
-                run();
-            } else {
-                queue.push(run);
-            }
-        });
-    };
-}
-
 const limit = createLimit(8);
-
-function evictOldestCacheEntries() {
-    if (tokenCache.size > MAX_CACHE_SIZE) {
-        const entries = Array.from(tokenCache.entries());
-        const toDelete = entries.slice(0, tokenCache.size - MAX_CACHE_SIZE);
-        for (const [key] of toDelete) {
-            tokenCache.delete(key);
-        }
-    }
-}
 
 export async function countTokens(paths: string[], signal?: AbortSignal): Promise<number> {
     if (signal?.aborted) {
@@ -100,7 +59,7 @@ export async function countTokens(paths: string[], signal?: AbortSignal): Promis
                     mtime: stats.mtime,
                     size: stats.size
                 });
-                evictOldestCacheEntries();
+                evictOldestCacheEntries(tokenCache, MAX_CACHE_SIZE);
 
                 return tokens;
             } catch (error) {

@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { FileTreeProvider } from "../FileTreeProvider";
-import { STATE_KEY_SELECTED } from "../constants";
+import { ensureTrailingSep, isWorkspaceRoot } from "./fileUtils";
+import { updateSelectedPaths } from "./commandUtils";
 
 export function registerDeleteFileCommand(
 	context: vscode.ExtensionContext,
@@ -35,10 +36,7 @@ export function registerDeleteFileCommand(
 					});
 					const selectionChanged = removeDeletedSelections(fileTreeProvider, uri.fsPath);
 					if (selectionChanged) {
-						await context.workspaceState.update(
-							STATE_KEY_SELECTED,
-							Array.from(fileTreeProvider.checkedPaths)
-						);
+						await updateSelectedPaths(context, fileTreeProvider);
 						debouncedRefreshAndUpdate();
 					}
 				} catch (error) {
@@ -63,14 +61,4 @@ function removeDeletedSelections(fileTreeProvider: FileTreeProvider, deletedFsPa
 		}
 	}
 	return changed;
-}
-
-function ensureTrailingSep(fsPath: string): string {
-	return fsPath.endsWith(path.sep) ? fsPath : `${fsPath}${path.sep}`;
-}
-
-function isWorkspaceRoot(uri: vscode.Uri): boolean {
-	return (vscode.workspace.workspaceFolders ?? []).some(
-		folder => folder.uri.fsPath === uri.fsPath
-	);
 }

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { FileTreeProvider } from "../FileTreeProvider";
+import { updateSelectedPaths } from "./commandUtils";
 
 export function registerSelectGitChangesCommand(
 	context: vscode.ExtensionContext,
@@ -71,10 +72,7 @@ export function registerSelectGitChangesCommand(
 			}
 
 			// Persist and refresh
-			await context.workspaceState.update(
-				"contextCraft.selectedPaths",
-				Array.from(fileTreeProvider.checkedPaths)
-			);
+			await updateSelectedPaths(context, fileTreeProvider);
 
 			debouncedRefreshAndUpdate();
 
