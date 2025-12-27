@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- Source: `src/` (entry: `src/extension.ts`). Commands in `src/commands/`; core modules include `FileTreeProvider.ts`, `selectionLogic.ts`, `tokenCounter.ts`, `getIgnoreParser.ts`, and `utils.ts`.
+- Source: `src/` (entry: `src/extension.ts`). Commands in `src/commands/`; domain folders include `app/`, `tree/`, `selection/`, `services/`, and `utils/` (e.g., `tree/FileTreeProvider.ts`, `selection/selectionLogic.ts`, `services/tokenCounter.ts`, `services/ignoreParser.ts`).
 - Tests: `src/test/` (Mocha-style). Additional suites in `src/test/suite/`. Compiled tests run from `out/test/**/*.test.js` (see `.vscode-test.mjs`).
 - Build output: `out/` (compiled JS and sourcemaps).
 - Assets: `resources/` (icons, activity bar assets).
@@ -33,4 +33,3 @@
 
 ## Security & Configuration Tips
 - The extension does not support Untrusted Workspaces; open a trusted folder. Avoid logging sensitive file contents. Test changes in single- and multi-root workspaces.
-

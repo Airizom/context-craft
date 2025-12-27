@@ -6,10 +6,10 @@ import { createMockUri, createVsCodeMock, MockFileTreeProvider } from "../mocks"
 
 const proxyquireNoCallThru = proxyquire.noCallThru();
 const vscodeMock = createVsCodeMock();
-const { toggleSelection } = proxyquireNoCallThru("../../selectionLogic", {
+const { toggleSelection } = proxyquireNoCallThru("../../selection/selectionLogic", {
 	vscode: vscodeMock,
-	"../../FileTreeProvider": { FileTreeProvider: class {} }
-}) as typeof import("../../selectionLogic");
+	"../tree/FileTreeProvider": { FileTreeProvider: class {} }
+}) as typeof import("../../selection/selectionLogic");
 
 const toUri = (fsPath: string): vscode.Uri => createMockUri(fsPath);
 

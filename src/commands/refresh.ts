@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { FileTreeProvider } from "../FileTreeProvider";
+import { FileTreeProvider } from "../tree/FileTreeProvider";
 
 export function registerRefreshCommand(
     context: vscode.ExtensionContext,

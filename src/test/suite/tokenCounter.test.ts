@@ -8,13 +8,17 @@ import { createVsCodeMock } from "../mocks";
 
 const proxyquireNoCallThru = proxyquire.noCallThru();
 const vscodeMock = createVsCodeMock();
-const utilsModule = proxyquireNoCallThru("../../utils", {
+const asyncLimitModule = proxyquireNoCallThru("../../utils/asyncLimit", {}) as typeof import("../../utils/asyncLimit");
+const cacheModule = proxyquireNoCallThru("../../utils/cache", {}) as typeof import("../../utils/cache");
+const binaryModule = proxyquireNoCallThru("../../utils/binary", {
 	vscode: vscodeMock
-}) as typeof import("../../utils");
-const { countTokens } = proxyquireNoCallThru("../../tokenCounter", {
+}) as typeof import("../../utils/binary");
+const { countTokens } = proxyquireNoCallThru("../../services/tokenCounter", {
 	vscode: vscodeMock,
-	"./utils": utilsModule
-}) as typeof import("../../tokenCounter");
+	"../utils/asyncLimit": asyncLimitModule,
+	"../utils/binary": binaryModule,
+	"../utils/cache": cacheModule
+}) as typeof import("../../services/tokenCounter");
 
 suite("countTokens()", () => {
 	let tempRoot: string;

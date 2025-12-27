@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { FileTreeProvider } from "../FileTreeProvider";
+import { FileTreeProvider } from "../tree/FileTreeProvider";
 import { STATE_KEY_SELECTED } from "../constants";
 
 export async function updateSelectedPaths(

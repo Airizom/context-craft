@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { FileTreeProvider } from "../FileTreeProvider";
+import { FileTreeProvider } from "../tree/FileTreeProvider";
 import { ensureTrailingSep, isWorkspaceRoot } from "./fileUtils";
 import { updateSelectedPaths } from "./commandUtils";
 

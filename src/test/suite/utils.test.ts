@@ -9,9 +9,12 @@ import { createMockUri, createVsCodeMock } from "../mocks";
 
 const proxyquireNoCallThru = proxyquire.noCallThru();
 const vscodeMock = createVsCodeMock();
-const { collectFiles, isBinary } = proxyquireNoCallThru("../../utils", {
+const { collectFiles } = proxyquireNoCallThru("../../services/fileCollector", {
 	vscode: vscodeMock
-}) as typeof import("../../utils");
+}) as typeof import("../../services/fileCollector");
+const { isBinary } = proxyquireNoCallThru("../../utils/binary", {
+	vscode: vscodeMock
+}) as typeof import("../../utils/binary");
 
 suite("utils helpers", () => {
 	let tempRoot: string;

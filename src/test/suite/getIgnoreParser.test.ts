@@ -5,15 +5,12 @@ import * as fs from "fs/promises";
 import proxyquire = require("proxyquire");
 import type * as vscode from "vscode";
 import { createMockUri, createVsCodeMock } from "../mocks";
-import ignore from "ignore";
 
 const proxyquireNoCallThru = proxyquire.noCallThru();
-const ignoreParserCache = new Map<string, { parser: ReturnType<typeof ignore>; mtime: number }>();
 const vscodeMock = createVsCodeMock();
-const { getIgnoreParser } = proxyquireNoCallThru("../../getIgnoreParser", {
-	vscode: vscodeMock,
-	"./extension": { ignoreParserCache }
-}) as typeof import("../../getIgnoreParser");
+const { getIgnoreParser, ignoreParserCache } = proxyquireNoCallThru("../../services/ignoreParser", {
+	vscode: vscodeMock
+}) as typeof import("../../services/ignoreParser");
 
 suite("getIgnoreParser", () => {
 	let tempRoot: string;

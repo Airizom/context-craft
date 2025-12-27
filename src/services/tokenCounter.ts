@@ -1,7 +1,9 @@
 import { encode } from "gpt-tokenizer/encoding/cl100k_base";
 import * as vscode from "vscode";
-import { isBinary, createLimit, evictOldestCacheEntries } from "./utils";
-import { MAX_PREVIEW_BYTES } from "./constants";
+import { createLimit } from "../utils/asyncLimit";
+import { isBinary } from "../utils/binary";
+import { evictOldestCacheEntries } from "../utils/cache";
+import { MAX_PREVIEW_BYTES } from "../constants";
 
 interface TokenCacheEntry {
     tokens: number;

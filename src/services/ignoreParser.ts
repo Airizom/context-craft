@@ -1,6 +1,7 @@
 import ignore from "ignore";
 import * as vscode from "vscode";
-import { ignoreParserCache } from "./extension";
+
+export const ignoreParserCache: Map<string, { parser: ReturnType<typeof ignore>; mtime: number }> = new Map();
 
 export async function getIgnoreParser(workspaceRootUri: vscode.Uri): Promise<ReturnType<typeof ignore>> {
     const gitIgnoreUri = vscode.Uri.joinPath(workspaceRootUri, ".gitignore");

@@ -2,9 +2,9 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import { MAX_PREVIEW_BYTES } from "../constants";
-import { FileTreeProvider } from "../FileTreeProvider";
-import { countTokens } from "../tokenCounter";
-import { isBinary } from "../utils";
+import { FileTreeProvider } from "../tree/FileTreeProvider";
+import { countTokens } from "../services/tokenCounter";
+import { isBinary } from "../utils/binary";
 
 export function registerCopySelectedCommand(
   context: vscode.ExtensionContext,

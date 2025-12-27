@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as sinon from "sinon";
-import { debounce } from "../../debounce";
+import { debounce } from "../../utils/debounce";
 
 suite("debounce()", () => {
 	test("executes exactly once after the specified delay", function () {

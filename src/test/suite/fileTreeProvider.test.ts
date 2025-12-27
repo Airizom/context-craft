@@ -5,9 +5,9 @@ import { createMockUri, createVsCodeMock } from "../mocks";
 
 const proxyquireNoCallThru = proxyquire.noCallThru();
 const vscodeMock = createVsCodeMock({ workspaceFolders: ["/tmp/proj"] });
-const { FileTreeProvider } = proxyquireNoCallThru("../../FileTreeProvider", {
+const { FileTreeProvider } = proxyquireNoCallThru("../../tree/FileTreeProvider", {
 	vscode: vscodeMock
-}) as typeof import("../../FileTreeProvider");
+}) as typeof import("../../tree/FileTreeProvider");
 
 suite("FileTreeProvider", () => {
 	test("shouldIgnoreWatcherEvent ignores common directories", function () {
